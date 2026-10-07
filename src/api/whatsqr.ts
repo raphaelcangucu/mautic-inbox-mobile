@@ -1,5 +1,13 @@
 import {t} from '../i18n/engine.ts';
+import {checkedOrigin} from './http.ts';
+/** A normal authenticated Mautic page: never put device grants or QR material in its URL. */
+export function qrPairingUrl(origin:string,assetId:number):string|null{
+ if(!Number.isSafeInteger(assetId)||assetId<=0)return null;
+ try{return checkedOrigin(origin)+`/s/whatsqr/connections/${assetId}/pair`}catch{return null}
+}
 export type QrConnection={id:number;name:string;status:string;can_pair:boolean};
+export type QrCatalogue={items:QrConnection[];creation?:{can_create:boolean;profiles:{id:number;name:string}[]}};
+export function qrPhone(value:string):string|null{const phone=value.trim().replace(/[\s().-]/g,'');return /^\+[1-9][0-9]{7,14}$/.test(phone)?phone:null}
 export type QrPairing={id:number;name:string;stage:'ready'|'waiting'|'connected'|'reconnecting'|'not_done';cause:string|null;can_start:boolean;can_regenerate:boolean;image_base64:string|null;image_mime:'image/png';version:string;refresh_after:number};
 export function pairingFromApi(raw:QrPairing,assetId:number):QrPairing{
  if(raw.id!==assetId||!['ready','waiting','connected','reconnecting','not_done'].includes(raw.stage)||typeof raw.version!=='string')throw Error(t("qr.invalidStatus"));

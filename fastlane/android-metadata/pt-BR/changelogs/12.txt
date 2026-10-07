@@ -1,0 +1,4 @@
+Controles de demonstração ocultos nas conexões reais.
+Modo mockado ativado pelo gesto de balançar em Conexões e seleção explícita da conta.
+Assistente com campo de mensagem mais compacto e compartilhamento com IA no cabeçalho.
+Falhas da API preservam o histórico real, sem trocar para dados fictícios.

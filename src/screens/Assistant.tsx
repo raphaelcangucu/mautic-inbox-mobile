@@ -94,7 +94,8 @@ export function Assistant() {
     <Top/>
     <ScrollView key={s.active?.id} ref={scroll} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" scrollEventThrottle={32} onScroll={event=>{const {contentOffset,contentSize,layoutMeasurement}=event.nativeEvent;follow.current=contentSize.height-contentOffset.y-layoutMeasurement.height<80}} onContentSizeChange={()=>{if(turns.length>0&&follow.current)scroll.current?.scrollToEnd({animated:true})}} contentContainerStyle={{paddingHorizontal:18,paddingTop:5,paddingBottom:18}}>
       <View style={{flexDirection:'row',gap:9,alignItems:'center',marginTop:6,marginBottom:13}}>
-        <Icon name="sparkles-outline" size={20} color={c.blue}/><T size={20} bold style={{lineHeight:26,letterSpacing:-.5}}>{t("assistant.title")}</T>
+        <Icon name="sparkles-outline" size={20} color={c.blue}/><T size={20} bold style={{flex:1,lineHeight:26,letterSpacing:-.5}}>{t("assistant.title")}</T>
+        {s.active?.mode==='live'&&<Tap label={t("assistant.sharing")} testID="assistant-sharing-settings" disabled={busy||s.offline} onPress={()=>void ask(null)} style={{width:40,height:40,minHeight:40,alignItems:'center'}}><Icon name="shield-checkmark-outline" size={20} color={c.soft}/></Tap>}
       </View>
       <View style={{flexDirection:'row',gap:5,alignItems:'center',alignSelf:'flex-start',backgroundColor:c.okBg,borderRadius:7,paddingVertical:5,paddingHorizontal:8}}>
         <Icon name="lock-closed-outline" size={12} color={c.ok}/><T size={9} bold color={c.ok}>{t("assistant.permissions")}</T>
@@ -110,20 +111,19 @@ export function Assistant() {
         <View style={{flexDirection:'row',gap:9,marginVertical:20}}><Icon name="shield-checkmark-outline" size={20} color={c.soft}/><T size={10} muted style={{flex:1}}>{s.active?.mode==='mock'?t("assistant.demoResults"):t("assistant.readOnly")}</T></View>
       </> : <View style={{gap:13,paddingTop:16}}>{turns.map(turn => <View key={turn.id} style={{alignSelf:turn.role==='user'?'flex-end':'stretch',maxWidth:turn.role==='user'?'90%':'100%'}}>
         <Card style={{backgroundColor:turn.role==='user'?c.tint:c.paper}}>
-          {turn.tool && <T size={10} color={c.blue}>{turn.tool}</T>}<T size={13}>{turn.text}</T>
+          <T size={13}>{turn.text}</T>
           {turn.tool?.startsWith('inbox_context') && turn.conversationId && <Button quiet label={t("assistant.useDraft")} onPress={() => {const id=turn.conversationId!;const repo=s.repo;void s.openChat(id).then(() => {const state=useApp.getState();if(state.repo===repo&&state.route==='chat'&&state.conversationId===id)state.setDraft(turn.text)})}}/>}
           {turn.role==='assistant' && <Button quiet label={t("assistant.viewContacts")} onPress={() => s.navigate('contacts')}/>}
         </Card>
       </View>)}</View>}
       {busy && <T size={11} muted style={{paddingTop:12}}>{s.active?.mode==='mock'?t("assistant.queryDemo"):t("assistant.query")}</T>}
     </ScrollView>
-    <View style={{paddingTop:11,paddingHorizontal:13,paddingBottom:17,borderTopWidth:1,borderColor:c.line,backgroundColor:c.paper}}>
+    <View style={{paddingVertical:10,paddingHorizontal:13,borderTopWidth:1,borderColor:c.line,backgroundColor:c.paper}}>
       <View style={{flexDirection:'row',gap:9,alignItems:'center'}}>
         <TextInput testID="assistant-composer" accessibilityLabel={t("assistant.askLabel")} value={input} onChangeText={setInput} placeholder={t("assistant.placeholder")} placeholderTextColor={c.faint} multiline style={{flex:1,color:c.ink,fontFamily:font.regular,fontSize:12,includeFontPadding:false,minHeight:44,maxHeight:100,padding:12,paddingVertical:10,backgroundColor:s.theme==='dark'?c.raised:c.canvas,borderRadius:15}}/>
         <Tap testID="assistant-send" label={t("assistant.send")} disabled={busy} onPress={() => void ask(input)} style={{width:44,height:44,borderRadius:14,backgroundColor:c.blue,alignItems:'center'}}><Icon name="send" size={20} color={c.paper}/></Tap>
       </View>
-      <T size={9} muted style={{paddingTop:9,textAlign:'center'}}>{t("assistant.reviewHint")}</T>
-      {s.active?.mode==='live'&&<Tap label={t("assistant.sharing")} testID="assistant-sharing-settings" disabled={busy||s.offline} onPress={()=>void ask(null)} style={{alignSelf:'center',paddingTop:7,paddingHorizontal:10}}><T size={10} color={c.blue}>{t("assistant.sharing")}</T></Tap>}
+
     </View>
     <Sheet title={t("assistant.sharing")} visible={sharingOpen} onClose={()=>{if(!busy){setSharingOpen(false);setPendingQuestion(null)}}}>
       {disclosure&&<>

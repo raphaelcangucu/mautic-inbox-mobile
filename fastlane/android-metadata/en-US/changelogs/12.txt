@@ -1,0 +1,4 @@
+Demo controls hidden in real connections.
+Mock mode requires shaking on Connections and explicitly selecting a mocked account.
+A more compact Assistant composer with AI sharing settings in the header.
+API failures preserve real history without switching to fictional data.

@@ -1,0 +1,1 @@
+Atendimento multicanal, comentários e assistente do Mautic. Ajustes no login Android para retornar ao aplicativo mesmo com o atalho web do Mautic instalado. Remoção de serviço de áudio em segundo plano não utilizado.

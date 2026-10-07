@@ -71,6 +71,10 @@ bundle exec ruby fastlane/tests/review_draft_test.rb
 bundle exec ruby fastlane/tests/listing_guard_test.rb
 ```
 
+## Explicit test mode
+
+Real connections always use their API and local real-data cache. API failures never switch to fictional data. On a phone, shake only on the **Connections** screen, enable test connections, then select a clearly marked mocked account. The app shows a persistent mock banner and hides test mode again after restarting. Demo tools and simulated notifications stay out of normal connections. See [test-mode behavior](docs/TEST-MODE.md).
+
 ## Native builds
 
 `ios/` and `android/` are generated from `app.json`, `app.config.cjs` and `plugins/`; generated projects are deliberately untracked. Icon, fonts and sample media under `assets/` are referenced by the app and required to build.

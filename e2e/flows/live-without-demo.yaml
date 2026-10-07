@@ -1,0 +1,36 @@
+appId: com.distributionmachine.mauticinbox.demo
+name: Real connection without demo controls
+---
+- launchApp:
+    permissions: {}
+- extendedWaitUntil:
+    visible:
+      id: tab-accounts
+    timeout: 30000
+- tapOn:
+    id: tab-accounts
+- assertNotVisible: 'Mockada · dados fictícios|Mocked · fictional data|Simulada · datos ficticios'
+- assertNotVisible: 'Demo controls|Controles de demonstração|Controles de demo'
+- assertNotVisible:
+    id: account-macro-7
+- assertNotVisible:
+    id: account-studio-9
+- takeScreenshot: '${APP_ROOT}/artifacts/qa/test-mode/live-connections'
+- tapOn:
+    id: tab-assistant
+- assertVisible:
+    id: assistant-composer
+- assertVisible:
+    id: assistant-sharing-settings
+- assertNotVisible: 'Look up data and review actions before executing them.|Consulte dados e revise ações antes de executar.|Consulta datos y revisa las acciones antes de ejecutarlas.'
+- assertNotVisible:
+    id: mock-mode-banner
+- takeScreenshot: '${APP_ROOT}/artifacts/qa/test-mode/live-assistant-compact'
+- tapOn:
+    id: tab-accounts
+- tapOn: 'Preferências e tema|Preferences and theme|Preferencias y tema'
+- scrollUntilVisible:
+    element: 'Silenciar conversa aberta|Mute open conversation|Silenciar conversación abierta'
+    direction: DOWN
+- assertNotVisible: 'Testar notificação local|Test local notification|Probar notificación local'
+- takeScreenshot: '${APP_ROOT}/artifacts/qa/test-mode/live-preferences'

@@ -36,7 +36,7 @@ export function Chat(){
  const suggest=()=>{if(s.active?.mode==='live')s.navigate('assistant');else{s.setDraft(t("chat.demoSuggestion"));s.notify(t("chat.draftSuggested"))}};
  const choose=(action:()=>void)=>{setMenu(false);action()};
  const actionRow=(label:string,icon:string,onPress:()=>void,options:{testID?:string;selected?:boolean;disabled?:boolean}={})=><Tap key={label} label={label} testID={options.testID} disabled={options.disabled} onPress={()=>choose(onPress)} style={{minHeight:46,flexDirection:'row',gap:12,justifyContent:'flex-start',paddingVertical:8}}><Icon name={icon} size={20} color={options.selected?c.blue:c.soft}/><T size={14} bold={options.selected} style={{flex:1,lineHeight:20}}>{label}</T>{options.selected&&<Icon name="check" size={18} color={c.blue}/>}</Tap>;
- const render=({item,index}:{item:Message;index:number})=><ChatMessage message={item} previous={reversed[index+1]} comment={comment} onEmail={value=>{setEmail(value);setPanel('crm')}} onCheck={()=>void s.sync()}/>;
+ const render=({item,index}:{item:Message;index:number})=><ChatMessage message={item} previous={reversed[index+1]} comment={comment} whatsapp={conversation.channel==='whatsapp'} onEmail={value=>{setEmail(value);setPanel('crm')}} onCheck={()=>void s.sync()}/>;
  return <View style={{flex:1}}><View testID="compact-chat-header" style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:8,paddingVertical:6,backgroundColor:c.paper,borderBottomWidth:1,borderColor:c.line}}>
  <Tap label={t("chat.backInbox")} onPress={()=>{Keyboard.dismiss();s.navigate('inbox')}} style={{width:36,minHeight:44,alignItems:'center'}}><Icon name="chevron-back" size={21}/></Tap>
  <Avatar conversation={conversation} size={34} showChannel={false}/>
@@ -87,7 +87,7 @@ export function Chat(){
  {comment&&actionRow(t("chat.moderate"),'shield-checkmark-outline',()=>setPanel('moderation'),{testID:'open-moderation'})}
  {comment&&conversation.comment?.relatedId&&actionRow(t("chat.openPrivate"),'chatbubbles-outline',()=>void s.openChat(conversation.comment!.relatedId!),{testID:'open-related'})}
  {s.active?.mode==='mock'&&actionRow(t("chat.simulate"),'refresh',()=>void s.inject())}
- {actionRow(t("chat.diagnostics"),'options-outline',()=>s.navigate('diagnostics'))}
+
  </View>
  </Sheet>
  <Sheet title={t("chat.originalPost")} visible={postSheet} onClose={()=>setPostSheet(false)}><T bold>{conversation.comment?.postBody?t("chat.postFrom")+" "+channels[conversation.channel]:(conversation.comment?.postTitle||t("chat.publication"))}</T>{conversation.comment?.image&&<Media attachment={{name:t("chat.postImage"),mime:'image/jpeg',uri:conversation.comment.image}}/>}<T size={13}>{conversation.comment?.postBody||t("chat.postDescriptionMissing")}</T>{conversation.comment?.commentBody&&<Card><T size={11} bold color={c.blue}>{t("chat.receivedComment")}</T><T size={13}>{conversation.comment.commentBody}</T></Card>}{postBusy&&<T muted size={12}>{t("chat.loadingPost")}</T>}{!postBusy&&!publicationURL(conversation.comment?.permalink,conversation.channel)&&<T size={12} muted>{t("chat.postLinkMissing")}</T>}{publicationURL(conversation.comment?.permalink,conversation.channel)&&<Button label={t("chat.openOn")+" "+channels[conversation.channel]} onPress={()=>void externalPost()}/>}{postError&&<T size={12} color={c.warn} accessibilityRole="alert">{postError}</T>}{s.active?.mode==='live'&&<Button quiet label={t("chat.refreshPost")} disabled={postBusy||s.offline} onPress={()=>void publication()}/>}</Sheet>
