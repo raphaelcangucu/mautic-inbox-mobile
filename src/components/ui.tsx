@@ -1,3 +1,4 @@
+import {conversationConnection} from '../api/conversation-connection';
 import {t} from '../i18n/engine';
 import React from 'react';
 import {View,Text,Pressable,TextInput,Image,StyleSheet,Platform,type TextProps,type ViewStyle} from 'react-native';
@@ -40,7 +41,7 @@ export function Tabs({bottomInset}:{bottomInset:number}){
   </Tap>)}
  </View>
 }
-export function ChannelLabel({conversation}:{conversation:Conversation}){const c=useTheme();return <T size={10} color={c.soft}>{channels[conversation.channel]} · {conversation.mobile.ai?t('common.aiAgent'):conversation.assignee?.id===useApp.getState().active?.user.id?t('common.you'):conversation.assignee?.name||t('filter.unassigned')}</T>}
+export function ChannelLabel({conversation}:{conversation:Conversation}){const c=useTheme();const connection=conversationConnection(conversation);const owner=conversation.mobile.ai?t('common.aiAgent'):conversation.assignee?.id===useApp.getState().active?.user.id?t('common.you'):conversation.assignee?.name||t('filter.unassigned');return <View style={{gap:2}}>{conversation.channel==='whatsapp'&&<T testID={'conversation-connection-'+conversation.id} size={10} color={c.blue} numberOfLines={1} style={{lineHeight:14}}>{connection.name}</T>}<T size={10} color={c.soft} numberOfLines={2} style={{lineHeight:14}}>{channels[conversation.channel]}{connection.phone?' · '+connection.phone:''} · {owner}</T></View>}
 export const styles=StyleSheet.create({row:{flexDirection:'row',alignItems:'center',gap:10},body:{padding:20,gap:16},iconButton:{width:40,alignItems:'center'}});
 
 export function DetailRow({label,value}:{label:string;value:string}){const c=useTheme();return <View style={{flexDirection:'row',alignItems:'flex-start',justifyContent:'space-between',gap:12,borderTopWidth:1,borderColor:c.line,paddingVertical:9}}><T size={11} muted style={{flex:1}}>{label}</T><T size={11} bold style={{flex:1,textAlign:'right'}}>{value}</T></View>}

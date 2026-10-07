@@ -11,7 +11,7 @@ export type CannedResponse = {id:number;name:string;body:string};
 export type CommentContext = {postTitle:string;postBody:string;commentBody?:string;image?:string|null;permalink:string;relatedId?:number;canPrivate:boolean;canPublic?:boolean};
 export type Conversation = {
   id: number; conversation_id: number; version: number; channel: Channel; contact_name: string; preview: string;
-  avatar_url: string | null; asset: {id: number; name: string;type?:string}; recipient: string;
+  avatar_url: string | null; asset: {id: number; name: string;type?:string;phone?:string|null;handle?:string|null}; recipient: string;
   assignee: {id: number; name: string} | null; lifecycle: 'open'|'snoozed'|'resolved'; needs_response: boolean;
   unread: number; human_takeover: boolean; last_message_at: string; updated_at: string;
   contact: {id: number; name: string; email: string; phone: string} | null;

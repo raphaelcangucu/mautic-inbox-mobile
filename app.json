@@ -2,7 +2,7 @@
   "expo": {
     "name": "Mautic Inbox",
     "slug": "mautic-inbox-mobile",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "orientation": "portrait",
     "scheme": "mautic-inbox-demo",
     "userInterfaceStyle": "automatic",
@@ -26,7 +26,7 @@
       "bundleIdentifier": "com.distributionmachine.mauticinbox.demo",
       "supportsTablet": true,
       "appleTeamId": "SB6QYUH97U",
-      "buildNumber": "33",
+      "buildNumber": "34",
       "privacyManifests": {
         "NSPrivacyTracking": false,
         "NSPrivacyTrackingDomains": [],
