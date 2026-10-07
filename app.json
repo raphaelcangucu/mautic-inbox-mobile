@@ -2,13 +2,13 @@
   "expo": {
     "name": "Mautic Inbox",
     "slug": "mautic-inbox-mobile",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "scheme": "mautic-inbox-demo",
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.distributionmachine.mauticinbox.demo",
-      "versionCode": 13,
+      "versionCode": 14,
       "softwareKeyboardLayoutMode": "resize",
       "allowBackup": false,
       "adaptiveIcon": {
@@ -26,7 +26,7 @@
       "bundleIdentifier": "com.distributionmachine.mauticinbox.demo",
       "supportsTablet": true,
       "appleTeamId": "SB6QYUH97U",
-      "buildNumber": "29",
+      "buildNumber": "30",
       "privacyManifests": {
         "NSPrivacyTracking": false,
         "NSPrivacyTrackingDomains": [],
@@ -98,14 +98,14 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Selecione uma imagem para anexar à conversa.",
-          "cameraPermission": "Use a câmera ao escolher uma foto para a conversa."
+          "photosPermission": "Selecione uma imagem para anexar \u00e0 conversa.",
+          "cameraPermission": "Use a c\u00e2mera ao escolher uma foto para a conversa."
         }
       ],
       [
         "expo-audio",
         {
-          "microphonePermission": "Use o microfone ao gravar uma mensagem de áudio.",
+          "microphonePermission": "Use o microfone ao gravar uma mensagem de \u00e1udio.",
           "enableBackgroundRecording": false,
           "enableBackgroundPlayback": false
         }

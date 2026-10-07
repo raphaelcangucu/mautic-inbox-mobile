@@ -1,4 +1,4 @@
-export type InternalAssistantAgent = {key:string;name:string;tools:string[];read_only:true};
+export type InternalAssistantAgent = {key:string;name:string;tools:string[];read_only:true;confirmation_required?:boolean};
 export function checkedAssistantAgents(raw:unknown):InternalAssistantAgent[]{
   const data=raw as {items?:InternalAssistantAgent[]};
   if(!data||!Array.isArray(data.items))throw Error('Invalid assistant configuration');

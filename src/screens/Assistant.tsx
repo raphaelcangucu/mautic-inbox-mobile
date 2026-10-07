@@ -1,15 +1,16 @@
-import {t} from '../i18n/engine';
+import {t,type TranslationKey} from '../i18n/engine';
 import React, {useEffect, useState, useRef} from 'react';
 import {View, ScrollView, TextInput, Keyboard, Linking} from 'react-native';
 import {useApp} from '../store/app';
 import {useTheme, font} from '../theme';
 import {T, Tap, Icon, Button, Card, Top} from '../components/ui';
+import {checkedAssistantProposals,assistantConfirmation,type AssistantProposal} from '../api/assistant-actions';
 import {Sheet} from '../components/Sheet';
 import {assistantConsentKey,checkedAssistantDisclosure,assistantConsentMatches,askConsentedAssistant,type AssistantConsent,type AssistantDisclosure} from '../api/assistant-consent';
 
 import {checkedAssistantAgents,chooseAssistantAgent,assistantHistoryKey,type InternalAssistantAgent} from '../api/assistant-agents';
 
-type Turn = {id:string; role:'user'|'assistant'; text:string; tool?:string; conversationId?:number};
+type Turn = {id:string; role:'user'|'assistant'; text:string; tool?:string; conversationId?:number;proposals?:AssistantProposal[];completedActions?:Record<string,string>};
 const prompts = [
   ['megaphone-outline', "assistant.promptCampaigns"],
   ['person-outline', "assistant.promptWaiting"],
@@ -20,6 +21,7 @@ const prompts = [
 export function Assistant() {
   const c = useTheme();
   const s = useApp();
+  const [actionReview,setActionReview]=useState<{turnId:string;proposal:AssistantProposal}|null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [input, setInput] = useState('');
   const [agents,setAgents]=useState<InternalAssistantAgent[]>([]);
@@ -38,7 +40,7 @@ export function Assistant() {
   const requestGeneration = useRef(0);
   useEffect(() => {
     let current = true; ++requestGeneration.current;
-    setTurns([]);setInput('');setBusy(false);setSharingOpen(false);setDisclosure(null);setPendingQuestion(null);setConsent(null);follow.current = true;
+    setActionReview(null);setTurns([]);setInput('');setBusy(false);setSharingOpen(false);setDisclosure(null);setPendingQuestion(null);setConsent(null);follow.current = true;
     setAgents([]);setAgent(null);setAgentsReady(false);setAgentPicker(false);setAgentError(false);
     const repo=s.repo;const mock=s.active?.mode==='mock';
     if(repo)void (async()=>{
@@ -56,7 +58,7 @@ export function Assistant() {
 
   async function selectAgent(selected:InternalAssistantAgent){
     const repo=s.repo;const accountId=s.active?.id;if(!repo||busy)return;
-    const generation=++requestGeneration.current;setBusy(true);setAgent(selected);setTurns([]);setInput('');setAgentPicker(false);setPendingQuestion(null);setSharingOpen(false);follow.current=true;
+    const generation=++requestGeneration.current;setActionReview(null);setBusy(true);setAgent(selected);setTurns([]);setInput('');setAgentPicker(false);setPendingQuestion(null);setSharingOpen(false);follow.current=true;
     try{await repo.disk.put('assistant:selected-agent',selected.key);const stored=await repo.disk.get<Turn[]>(assistantHistoryKey(selected.key));if(requestGeneration.current===generation&&useApp.getState().active?.id===accountId)setTurns(stored||[])}
     catch(e){if(requestGeneration.current===generation&&useApp.getState().active?.id===accountId)s.notify(e instanceof Error?e.message:String(e))}
     finally{if(requestGeneration.current===generation&&useApp.getState().active?.id===accountId)setBusy(false)}
@@ -95,10 +97,37 @@ export function Assistant() {
       const body={message:question,agent_key:agent!.key,conversation_id:s.conversationId,history:turns.slice(-6)};
       const response = account.mode==='mock'?await repo.api.request<Omit<Turn,'id'>>({method:'POST',path:'/inbox/mobile/assistant/messages',body}):await askConsentedAssistant<Omit<Turn,'id'>>(repo.api,info!,saved||null,account.id,account.origin,body);
       if (!current()) return;
-      const complete = [...next, {...response,id:String(Date.now()+1),conversationId:s.conversationId||undefined}];
+      const proposals=checkedAssistantProposals(response.proposals,agent!.key);
+      const complete = [...next, {...response,proposals,id:String(Date.now()+1),conversationId:s.conversationId||undefined}];
       setTurns(complete);
       await repo?.disk.put(assistantHistoryKey(agent!.key),complete);
     } catch (e) {if(current()){setInput(question);setTurns(turns);s.notify(e instanceof Error ? e.message : String(e))}}
+  }
+  async function confirmAction(){
+    const review=actionReview,account=s.active,repo=s.repo;if(!review||!account||!repo||!agent||busy||s.offline)return;
+    const generation=++requestGeneration.current;const current=()=>requestGeneration.current===generation&&useApp.getState().active?.id===account.id;
+    setBusy(true);
+    try{
+      const response=await repo.api.request<{status:string}>({method:'POST',path:'/inbox/mobile/assistant/actions/confirm',body:assistantConfirmation(review.proposal,agent.key)});
+      if(!current())return;
+      const status=String(response.status||'registered');
+      const complete=turns.map(turn=>turn.id===review.turnId?{...turn,completedActions:{...turn.completedActions,[review.proposal.id]:status}}:turn);
+      setTurns(complete);setActionReview(null);await repo.disk.put(assistantHistoryKey(agent.key),complete);s.notify(t('assistant.actionRegistered',{status}));
+    }catch(e){if(current())s.notify(e instanceof Error?e.message:String(e))}
+    finally{if(current())setBusy(false)}
+  }
+  async function refreshAction(turnId:string,proposal:AssistantProposal){
+    const account=s.active,repo=s.repo;if(!account||!repo||!agent||busy||s.offline)return;
+    const generation=++requestGeneration.current;const current=()=>requestGeneration.current===generation&&useApp.getState().active?.id===account.id;
+    setBusy(true);
+    try{
+      const response=await repo.api.request<{status:string}>({method:'GET',path:'/inbox/mobile/assistant/actions/status',query:{proposal_id:proposal.id,agent_key:agent.key}});
+      if(!current())return;
+      if(!['pending','sending','sent','delivered','read','completed','failed'].includes(response.status))throw Error(t('assistant.actionStatusError'));
+      const complete=turns.map(turn=>turn.id===turnId?{...turn,completedActions:{...turn.completedActions,[proposal.id]:response.status}}:turn);
+      setTurns(complete);await repo.disk.put(assistantHistoryKey(agent.key),complete);
+    }catch(e){if(current())s.notify(e instanceof Error?e.message:String(e))}
+    finally{if(current())setBusy(false)}
   }
   async function allowSharing(){
     const account=s.active;const repo=s.repo;if(!account||!repo||!disclosure||busy||s.offline)return;
@@ -143,12 +172,13 @@ export function Assistant() {
           <View style={{width:29,height:29,borderRadius:9,backgroundColor:c.canvas,alignItems:'center',justifyContent:'center'}}><Icon name={icon} color={c.blue} size={16}/></View>
           <T size={12} bold style={{flex:1}}>{t(q)}</T><Icon name="chevron-forward" size={13} color={c.faint}/>
         </Tap>)}</View>
-        <View style={{flexDirection:'row',gap:9,marginVertical:20}}><Icon name="shield-checkmark-outline" size={20} color={c.soft}/><T size={10} muted style={{flex:1}}>{s.active?.mode==='mock'?t("assistant.demoResults"):t("assistant.readOnly")}</T></View>
+        <View style={{flexDirection:'row',gap:9,marginVertical:20}}><Icon name="shield-checkmark-outline" size={20} color={c.soft}/><T size={10} muted style={{flex:1}}>{s.active?.mode==='mock'?t("assistant.demoResults"):t(agent.confirmation_required?"assistant.reviewActions":"assistant.readOnly")}</T></View>
       </> : <View style={{gap:13,paddingTop:16}}>{turns.map(turn => <View key={turn.id} style={{alignSelf:turn.role==='user'?'flex-end':'stretch',maxWidth:turn.role==='user'?'90%':'100%'}}>
         <Card style={{backgroundColor:turn.role==='user'?c.tint:c.paper}}>
           <T size={13}>{turn.text}</T>
           {turn.tool?.includes('inbox_context') && turn.conversationId && <Button quiet label={t("assistant.useDraft")} onPress={() => {const id=turn.conversationId!;const repo=s.repo;void s.openChat(id).then(() => {const state=useApp.getState();if(state.repo===repo&&state.route==='chat'&&state.conversationId===id)state.setDraft(turn.text)})}}/>}
-          {turn.role==='assistant' && <Button quiet label={t("assistant.viewContacts")} onPress={() => s.navigate('contacts')}/>}
+          {(turn.proposals||[]).map(proposal=><View key={proposal.id} style={{marginTop:12,borderTopWidth:1,borderColor:c.line,paddingTop:10}}><T size={12} bold>{t(`assistant.action.${proposal.tool}`)}</T><T size={12} muted>{proposal.target.name} · #{proposal.target.id}</T>{proposal.fields.body&&<T size={12} style={{marginTop:6}} numberOfLines={3}>{proposal.fields.body}</T>}{turn.completedActions?.[proposal.id]?<View><T size={11} color={turn.completedActions[proposal.id]==='failed'?c.warn:c.soft} style={{marginTop:8}}>{t('assistant.actionRegistered',{status:t(('assistant.status.'+turn.completedActions[proposal.id]) as TranslationKey)})}</T>{proposal.tool==='mautic_reply_inbox'&&<Button quiet label={t('assistant.refreshStatus')} disabled={busy||s.offline} onPress={()=>void refreshAction(turn.id,proposal)}/>}</View>:<Button quiet testID={`assistant-review-${proposal.id}`} label={t('assistant.reviewAction')} disabled={busy||s.offline} onPress={()=>setActionReview({turnId:turn.id,proposal})}/>}</View>)}
+          {turn.role==='assistant' && turn.tool?.includes('contact') && <Button quiet label={t("assistant.viewContacts")} onPress={() => s.navigate('contacts')}/>}
         </Card>
       </View>)}</View>)}
       {busy && <T size={11} muted style={{paddingTop:12}}>{s.active?.mode==='mock'?t("assistant.queryDemo"):t("assistant.query")}</T>}
@@ -160,6 +190,19 @@ export function Assistant() {
       </View>
 
     </View>}
+    <Sheet title={t('assistant.reviewAction')} visible={!!actionReview} onClose={()=>{if(!busy)setActionReview(null)}}>
+      {actionReview&&<>
+        <Card><T bold size={15}>{t(`assistant.action.${actionReview.proposal.tool}`)}</T><T size={13}>{actionReview.proposal.target.name} · #{actionReview.proposal.target.id}</T><T size={11} muted>{s.active?.name} · {actionReview.proposal.target.channel}</T></Card>
+        {actionReview.proposal.fields.mode&&<T bold size={12}>{t(actionReview.proposal.fields.mode==='public'?'assistant.publicReply':'assistant.privateReply')}</T>}
+        {actionReview.proposal.fields.take_attendance&&<T size={12}>{t('assistant.takeAndReply')}</T>}
+        {actionReview.proposal.fields.body&&<Card><T size={14}>{actionReview.proposal.fields.body}</T></Card>}
+        {Object.entries(actionReview.proposal.fields).filter(([key])=>!['body','mode','take_attendance','may_trigger_campaign'].includes(key)).map(([key,value])=><View key={key} style={{marginVertical:6}}><T size={12} bold>{t(({name:'assistant.field.name',description:'assistant.field.description',allowRestart:'assistant.field.allowRestart',contacts:'assistant.field.contacts',user_name:'assistant.field.user_name',user_id:'assistant.field.user_id'} as Record<string,TranslationKey>)[key]||'assistant.reviewAction')}</T>{actionReview.proposal.before&&key in actionReview.proposal.before&&<T size={12} muted>{t('assistant.before',{value:String(actionReview.proposal.before[key]??'—')})}</T>}<T size={13}>{Array.isArray(value)?value.map(item=>`${item.name||'#'+item.id} (#${item.id})`).join(', '):typeof value==='boolean'?t(value?'assistant.yes':'assistant.no'):String(value)}</T></View>)}
+        {actionReview.proposal.fields.may_trigger_campaign&&<T size={12}>{t('assistant.campaignMayTrigger')}</T>}
+        <T size={11} muted>{t('assistant.actionWarning')}</T>
+        <Button testID="assistant-confirm-action" label={t('assistant.confirmAction')} disabled={busy||s.offline} onPress={()=>void confirmAction()}/>
+        <Button quiet label={t('common.cancel')} disabled={busy} onPress={()=>setActionReview(null)}/>
+      </>}
+    </Sheet>
     <Sheet title={t('assistant.chooseAgent')} visible={agentPicker} onClose={()=>setAgentPicker(false)}>
       {agents.map(item=><Button key={item.key||'legacy'} quiet={item.key!==agent?.key} label={item.name} testID={`assistant-agent-${item.key||'legacy'}`} onPress={()=>void selectAgent(item)}/>)}
     </Sheet>
