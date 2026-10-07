@@ -91,3 +91,6 @@ google-services.json
 !/e2e/flows/
 /e2e/flows/*
 !/e2e/flows/live-without-demo.yaml
+
+# Reusable read-only swipe navigation validation
+!/e2e/flows/ios-swipe-back.yaml
