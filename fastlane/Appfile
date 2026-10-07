@@ -1,0 +1,8 @@
+require "json"
+config = JSON.parse(File.read(File.expand_path("../app.json", __dir__))).fetch("expo").fetch("ios")
+app_identifier(config.fetch("bundleIdentifier"))
+team_id(config.fetch("appleTeamId"))
+for_platform :android do
+  android = JSON.parse(File.read(File.expand_path("../app.json", __dir__))).fetch("expo").fetch("android")
+  package_name(android.fetch("package"))
+end

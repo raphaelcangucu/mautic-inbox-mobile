@@ -1,0 +1,40 @@
+import {t} from './src/i18n/engine';
+import {i18n} from './src/i18n/engine';
+import {useTranslation} from 'react-i18next';
+import {initializeLanguage,refreshSystemLanguage} from './src/i18n/preferences';
+import React,{useEffect,useRef,useState} from 'react';
+import {View,AppState,BackHandler,Platform,Appearance,useWindowDimensions,Keyboard,KeyboardAvoidingView,AccessibilityInfo} from 'react-native';
+import {SafeAreaProvider,useSafeAreaInsets} from 'react-native-safe-area-context';
+import {StatusBar} from 'expo-status-bar';
+import {useFonts} from 'expo-font';
+import * as NavigationBar from 'expo-navigation-bar';
+import * as SystemUI from 'expo-system-ui';
+import * as SplashScreen from 'expo-splash-screen';
+import {StartupScreen} from './src/components/StartupScreen';
+void SplashScreen.preventAutoHideAsync().catch(()=>{});
+void AccessibilityInfo.isReduceMotionEnabled().then(reduced=>SplashScreen.setOptions({fade:!reduced,duration:180})).catch(()=>{});
+import * as Notifications from 'expo-notifications';
+import {useApp,flushDraft,synchronizeNativePush,notificationPreferences} from './src/store/app';
+import {updateNativeToken,refreshNativeToken} from './src/api/native-push';
+import {suppressNotification} from './src/api/notification-policy';
+import {useTheme} from './src/theme';
+import {Inbox} from './src/screens/Inbox';
+import {Chat} from './src/screens/Chat';
+import {Assistant} from './src/screens/Assistant';
+import {Contact,Contacts,Accounts,Connection,Preferences,NotificationsScreen,Diagnostics} from './src/screens/More';
+import {T,Tap,Tabs} from './src/components/ui';
+Notifications.setNotificationHandler({handleNotification:async notification=>{const state=useApp.getState();const data=notification.request.content.data||{};const preferences=await notificationPreferences(data.accountId);const suppressed=!preferences||suppressNotification({...state,preferences},data);return {shouldShowBanner:!preferences?.quiet&&!suppressed,shouldShowList:!preferences?.quiet&&!suppressed,shouldPlaySound:!!preferences?.sound&&!preferences?.quiet&&!suppressed,shouldSetBadge:false}}});
+function Shell(){useTranslation(undefined,{i18n});const c=useTheme();const s=useApp();const insets=useSafeAreaInsets();const size=useWindowDimensions();const [keyboardOpen,setKeyboardOpen]=useState(false);const seenNotification=useRef<string|null>(null);
+ useEffect(()=>{void initializeLanguage().then(()=>s.boot());const listener=AppState.addEventListener('change',state=>{if(state==='active')void refreshSystemLanguage()});return()=>listener.remove()},[]);
+ useEffect(()=>{if(!s.ready||Platform.OS!=='ios')return;let alive=true;const run=()=>{if(alive)void synchronizeNativePush().catch(()=>{})};run();const timer=setInterval(run,20000);const token=Notifications.addPushTokenListener(value=>{updateNativeToken(value);run()});const app=AppState.addEventListener('change',value=>{if(value==='active')refreshNativeToken();run()});return()=>{alive=false;clearInterval(timer);token.remove();app.remove()}},[s.ready]);
+ useEffect(()=>{if(s.ready)void synchronizeNativePush().catch(()=>{})},[s.ready,s.active?.id,s.route,s.conversationId,s.preferences,i18n.resolvedLanguage]);
+ useEffect(()=>{if(!s.ready)return;let cancelled=false;let frame:number;void SystemUI.setBackgroundColorAsync(c.canvas).catch(()=>{}).then(()=>{if(!cancelled)frame=requestAnimationFrame(()=>{void SplashScreen.hideAsync().catch(()=>{})})});return()=>{cancelled=true;if(frame)cancelAnimationFrame(frame)}},[s.ready,c.canvas]);
+ useEffect(()=>{const shown=Keyboard.addListener('keyboardDidShow',()=>setKeyboardOpen(true));const hidden=Keyboard.addListener('keyboardDidHide',()=>setKeyboardOpen(false));return()=>{shown.remove();hidden.remove()}},[]);
+ useEffect(()=>{if(Platform.OS!=='web')Appearance.setColorScheme(s.theme);void SystemUI.setBackgroundColorAsync(c.canvas);if(Platform.OS==='android')NavigationBar.setStyle(s.theme==='dark'?'light':'dark')},[c.canvas,s.theme]);
+ useEffect(()=>{const app=AppState.addEventListener('change',state=>{if(state==='active')void useApp.getState().sync();else void flushDraft()});const timer=setInterval(()=>{const state=useApp.getState();if(state.active&&AppState.currentState==='active'&&!state.offline)void state.sync(false)},5000);const back=BackHandler.addEventListener('hardwareBackPress',()=>{const st=useApp.getState();if(st.route==='inbox')return false;st.back();return true});return()=>{app.remove();back.remove();clearInterval(timer)}},[]);
+ useEffect(()=>{if(!s.ready||Platform.OS==='web')return;const handle=(response:Notifications.NotificationResponse)=>{const request=response.notification.request;if(seenNotification.current===request.identifier)return;const data=request.content.data;if(!data)return;const st=useApp.getState();const account=st.accounts.find(a=>a.id===data.accountId);const id=Number(data.conversationId);if(!account||!Number.isSafeInteger(id)||id<1)return;seenNotification.current=request.identifier;void Notifications.clearLastNotificationResponseAsync().catch(()=>{});void st.switchAccount(account).then(()=>{if(useApp.getState().repo&&useApp.getState().active?.id===account.id)void useApp.getState().openChat(id)})};const subscription=Notifications.addNotificationResponseReceivedListener(handle);void Notifications.getLastNotificationResponseAsync().then(response=>{if(response)handle(response)}).catch(()=>{});return()=>subscription.remove()},[s.ready]);
+ const screens={inbox:<Inbox/>,chat:<Chat key={s.conversationId}/>,contact:<Contact/>,assistant:<Assistant/>,contacts:<Contacts/>,accounts:<Accounts/>,connection:<Connection/>,login:<Connection/>,notifications:<NotificationsScreen/>,preferences:<Preferences/>,diagnostics:<Diagnostics/>};
+ const tabs=['inbox','assistant','contacts','accounts'].includes(s.route);
+ return <View style={{flex:1,backgroundColor:c.canvas,alignItems:'center'}}><StatusBar style={s.theme==='dark'?'light':'dark'}/><View style={{width:'100%',maxWidth:size.width>700?480:undefined,flex:1,paddingTop:insets.top,paddingBottom:keyboardOpen||tabs?0:insets.bottom,backgroundColor:c.canvas}}><KeyboardAvoidingView testID="keyboard-safe-area" style={{flex:1}} behavior={Platform.OS==='ios'?'padding':Platform.OS==='android'?'height':undefined}>{!s.ready?<StartupScreen theme={s.theme}/>:<>{s.error&&<Tap label={t("common.closeNotice")} onPress={()=>useApp.setState({error:''})} style={{padding:10,backgroundColor:c.warnBg}}><T size={12} color={c.warn}>{s.error}</T></Tap>}{screens[s.route]}{s.toast&&s.route!=='chat'&&<View pointerEvents="none" style={{paddingHorizontal:18,paddingVertical:7,backgroundColor:c.tint}}><T size={11} color={c.blue}>{s.toast}</T></View>}{tabs&&!keyboardOpen&&<Tabs bottomInset={insets.bottom}/>}</>}</KeyboardAvoidingView></View></View>
+}
+export default function App(){const [loaded,error]=useFonts({Manrope:require('./assets/fonts/manrope-400.ttf'),Manrope600:require('./assets/fonts/manrope-600.ttf'),Manrope700:require('./assets/fonts/manrope-700.ttf')});if(!loaded&&!error)return <StartupScreen theme={Appearance.getColorScheme()==='dark'?'dark':'light'} fontsReady={false}/>;return <SafeAreaProvider><Shell/></SafeAreaProvider>}

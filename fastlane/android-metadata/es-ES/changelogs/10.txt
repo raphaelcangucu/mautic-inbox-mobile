@@ -1,0 +1,1 @@
+Ajuste de permisos: reproducción de audio y vídeo con la app abierta. Atención multicanal, asistente y filtros por segmento y campaña.

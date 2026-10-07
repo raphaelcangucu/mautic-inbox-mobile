@@ -1,0 +1,18 @@
+Multichannel support on your iPhone.
+
+Connect your team's compatible Mautic instances and manage conversations, comments and contacts in one app.
+
+• Switch between instances and users with separate sessions.
+• Organize your queue by channel, assignee and state.
+• Reply, take conversations and add internal notes.
+• Follow Instagram and Facebook comments.
+• Filter contacts by segment or campaign and search by name, email or phone.
+• Start a WhatsApp QR conversation from a contact with a valid phone number.
+• Display and share an image of the QR code for a number that needs to connect to WhatsApp.
+• Mark spam and block authors in the support queue. Hiding Instagram comments depends on connection permissions.
+• Query information from your instance with the assistant.
+• Receive notifications sent directly from Mautic to your iPhone.
+• Navigate with local history and saved drafts.
+• Choose Portuguese, English or Spanish, or follow your device language.
+
+The app requires a Mautic instance with a compatible mobile API and an authorized user. Channel and feature availability depends on your instance's configuration and permissions. Blocking authors in support does not block their social media profiles. To link WhatsApp, scan the QR code on another screen using WhatsApp's Linked Devices option. Starting from a contact opens the conversation; the operator sends the message.

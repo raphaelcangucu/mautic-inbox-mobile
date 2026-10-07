@@ -1,0 +1,1 @@
+Permission cleanup: audio and video playback while the app is open. Multichannel support, assistant, and segment and campaign filters.

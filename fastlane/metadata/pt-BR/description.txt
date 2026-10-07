@@ -1,0 +1,18 @@
+Seu atendimento multicanal no iPhone.
+
+Conecte as instâncias Mautic compatíveis da sua equipe e acompanhe conversas, comentários e contatos em um só aplicativo.
+
+• Alterne entre instâncias e usuários com sessões separadas.
+• Organize a fila com filtros por canal, responsável e estado.
+• Converse, assuma atendimentos e registre notas internas.
+• Acompanhe comentários do Instagram e Facebook.
+• Filtre contatos por segmento ou campanha e busque por nome, e-mail ou telefone.
+• Inicie um atendimento pelo WhatsApp QR a partir de um contato com telefone válido.
+• Exiba e compartilhe como imagem o QR Code de um número que precisa ser conectado ao WhatsApp.
+• Marque spam e bloqueie autores na fila de atendimento. A ocultação no Instagram depende das permissões da conexão.
+• Consulte informações da sua instância com o assistente.
+• Receba notificações enviadas diretamente pelo Mautic para o iPhone.
+• Navegue com histórico local e rascunhos salvos.
+• Escolha português, inglês ou espanhol, ou siga o idioma do aparelho.
+
+O aplicativo requer uma instância Mautic com a API mobile compatível e um usuário autorizado. A disponibilidade de canais e funções depende da configuração e das permissões da sua instância. O bloqueio de autores no atendimento não bloqueia perfis nas redes sociais. Para vincular o WhatsApp, escaneie o QR Code em outra tela usando a opção Aparelhos conectados do WhatsApp. Iniciar um atendimento pelo contato abre a conversa; o envio da mensagem é feito pelo operador.

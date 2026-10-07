@@ -1,0 +1,1 @@
+Primera versión con conversaciones multicanal, comentarios, contactos, asistente y notificaciones push directas de Mautic. Interfaz disponible en portugués, inglés y español.

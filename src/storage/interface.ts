@@ -1,0 +1,1 @@
+export interface Storage {get<T>(key: string): Promise<T|null>; put(key: string,value: unknown): Promise<void>; remove(key: string): Promise<void>; scan<T>(prefix: string): Promise<T[]>; clear(): Promise<void>; close(): Promise<void>}

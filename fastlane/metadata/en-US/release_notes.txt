@@ -1,0 +1,1 @@
+First release with multichannel conversations, comments, contacts, an assistant and direct Mautic push notifications. Interface available in Portuguese, English and Spanish.

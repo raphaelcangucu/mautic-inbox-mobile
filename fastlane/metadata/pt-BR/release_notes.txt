@@ -1,0 +1,1 @@
+Primeira versão com atendimento multicanal, assistente, comentários e notificações no iPhone. Inclui busca de contatos por segmento e campanha, abertura de atendimento pelo WhatsApp QR e compartilhamento da imagem de conexão.

@@ -1,0 +1,143 @@
+{
+  "pt-BR": {
+    "name": "Mautic Inbox",
+    "subtitle": "Conversas, equipe e assistente",
+    "promotional_text": "Leve seu atendimento com você: conversas, comentários, contatos e assistente conectados ao seu Mautic, com notificações no iPhone.",
+    "keywords": "chat,crm,contatos,campanha,segmento,comentários,multicanal,suporte,notificação,automação",
+    "description": "Seu atendimento acompanha você.\n\nReúna conversas, comentários e contatos do seu Mautic no iPhone e no iPad. Veja o histórico antes de responder, acompanhe o que precisa de atenção e consulte informações da sua equipe sem trocar de ferramenta.\n\nCONVERSAS COM CONTEXTO\nOrganize a fila por canal, responsável e estado. Responda aos atendimentos disponíveis, assuma uma conversa e registre notas internas. Histórico local e rascunhos ajudam a retomar o trabalho.\n\nCONTATOS MAIS FÁCEIS DE ENCONTRAR\nBusque por nome, e-mail ou telefone. Combine filtros por segmento e campanha e abra um atendimento pelo WhatsApp QR a partir de um contato com telefone válido e uma conexão ativa.\n\nCOMENTÁRIOS NO MESMO FLUXO\nAcompanhe comentários do Instagram e Facebook. Marque spam e bloqueie autores na fila de atendimento. A ocultação no Instagram depende das permissões da conexão; bloquear no atendimento não bloqueia o perfil na rede social.\n\nUM ASSISTENTE PARA SEU MAUTIC\nConsulte campanhas, contatos e informações da sua instalação com o assistente. O compartilhamento com o provedor de IA exige seu consentimento e pode ser desativado nas configurações.\n\nSUAS CONEXÕES, SEPARADAS\nAdicione uma ou mais instâncias pela URL e autentique seu usuário. Alterne entre contas com sessões separadas. Exiba e compartilhe como imagem o QR de uma conexão WhatsApp que precisa ser vinculada.\n\nAVISOS NO IPHONE\nReceba notificações enviadas diretamente pela sua instalação Mautic. Configure suas preferências e acompanhe os atendimentos conforme suas permissões.\n\nDisponível em português, inglês e espanhol, com temas claro e escuro.\n\nPARA COMEÇAR\nÉ necessária uma instalação Mautic com a API mobile compatível e um usuário autorizado. Canais, assistente, moderação e notificações dependem da configuração da instalação e das permissões da conta. Abrir uma conversa pelo contato não envia mensagens automaticamente. Para vincular o WhatsApp, use Aparelhos conectados e escaneie o QR em outra tela.",
+    "footer": "Tela real do app · Dados de demonstração",
+    "hero": "Seu atendimento.\nOnde você estiver.",
+    "hero_body": "Conversas, comentários e assistente\nconectados ao seu Mautic.",
+    "slides": [
+      [
+        "01-conversas",
+        "01-conversas",
+        "ATENDIMENTO MULTICANAL",
+        "Sua fila.\nTudo à vista.",
+        "Encontre o que precisa de atenção\npor canal, responsável e estado."
+      ],
+      [
+        "02-chat",
+        "02-chat",
+        "CONVERSAS COM CONTEXTO",
+        "Mais contexto.\nMelhores respostas.",
+        "Histórico e notas internas\nno mesmo atendimento."
+      ],
+      [
+        "03-assistente",
+        "04-assistente",
+        "ASSISTENTE CONECTADO",
+        "Pergunte ao\nseu Mautic.",
+        "Consulte campanhas e contatos\ncom as permissões da sua conta."
+      ],
+      [
+        "04-comentarios",
+        "03-comentarios",
+        "COMENTÁRIOS E MODERAÇÃO",
+        "Sua comunidade.\nNa mesma fila.",
+        "Acompanhe comentários\ne organize a moderação."
+      ],
+      [
+        "05-conexoes",
+        "05-conexoes",
+        "MÚLTIPLAS CONEXÕES",
+        "Seus Mautics.\nUm aplicativo.",
+        "Adicione a URL, entre na sua conta\ne alterne entre instâncias."
+      ]
+    ]
+  },
+  "en-US": {
+    "name": "Mautic Inbox",
+    "subtitle": "Team conversations & assistant",
+    "promotional_text": "Take support with you: conversations, comments, contacts and an assistant connected to your Mautic, with notifications on your iPhone.",
+    "keywords": "chat,crm,contacts,campaign,segment,comments,multichannel,support,notification,automation",
+    "description": "Take your support desk with you.\n\nBring your Mautic conversations, comments and contacts to iPhone and iPad. Read the history before replying, see what needs attention and ask about your team's information without switching tools.\n\nCONVERSATIONS WITH CONTEXT\nFilter the queue by channel, assignee and status. Reply to available conversations, take ownership and add internal notes. Local history and saved drafts help you pick up where you left off.\n\nFIND THE RIGHT CONTACT\nSearch by name, email or phone. Combine segment and campaign filters and open a WhatsApp QR conversation from a contact with a valid phone number and an active connection.\n\nCOMMENTS IN THE SAME WORKFLOW\nFollow Instagram and Facebook comments. Mark spam and block authors in the support queue. Hiding Instagram comments depends on connection permissions; blocking in the queue does not block a social media profile.\n\nAN ASSISTANT FOR YOUR MAUTIC\nAsk the assistant about campaigns, contacts and information in your installation. Sharing with the AI provider requires your consent and can be disabled in Settings.\n\nKEEP YOUR CONNECTIONS SEPARATE\nAdd one or more installations by URL and sign in with your account. Switch accounts with separate sessions. Display and share the QR image for a WhatsApp connection that needs pairing.\n\nNOTIFICATIONS ON IPHONE\nReceive notifications sent directly by your Mautic installation. Set your preferences and follow conversations according to your permissions.\n\nAvailable in Portuguese, English and Spanish, with light and dark themes.\n\nGETTING STARTED\nRequires a Mautic installation with the compatible mobile API and an authorized user. Channels, assistant, moderation and notifications depend on installation settings and account permissions. Opening a conversation from a contact never sends a message automatically. To pair WhatsApp, use Linked Devices and scan the QR code on another screen.",
+    "footer": "Actual app screen · Demo data",
+    "hero": "Your support desk.\nWherever you are.",
+    "hero_body": "Conversations, comments and an assistant\nconnected to your Mautic.",
+    "slides": [
+      [
+        "01-conversas",
+        "01-conversas",
+        "MULTICHANNEL SUPPORT",
+        "Your queue.\nAll in view.",
+        "Find what needs attention\nby channel, assignee and status."
+      ],
+      [
+        "02-chat",
+        "02-chat",
+        "CONVERSATIONS WITH CONTEXT",
+        "More context.\nBetter replies.",
+        "History and internal notes\nin the same conversation."
+      ],
+      [
+        "03-assistente",
+        "04-assistente",
+        "CONNECTED ASSISTANT",
+        "Ask your\nMautic.",
+        "Explore campaigns and contacts\nwith your account permissions."
+      ],
+      [
+        "04-comentarios",
+        "03-comentarios",
+        "COMMENTS AND MODERATION",
+        "Your community.\nIn the same queue.",
+        "Follow comments\nand organize moderation."
+      ],
+      [
+        "05-conexoes",
+        "05-conexoes",
+        "MULTIPLE CONNECTIONS",
+        "Your Mautics.\nOne app.",
+        "Add a URL, sign in\nand switch installations."
+      ]
+    ]
+  },
+  "es-ES": {
+    "name": "Mautic Inbox",
+    "subtitle": "Conversaciones y asistente",
+    "promotional_text": "Lleva tu atención contigo: conversaciones, comentarios, contactos y un asistente conectados a tu Mautic, con notificaciones en el iPhone.",
+    "keywords": "chat,crm,contacto,equipo,campaña,segmento,comentario,multicanal,soporte,avisos,automatización",
+    "description": "Tu atención te acompaña.\n\nReúne las conversaciones, los comentarios y los contactos de tu Mautic en el iPhone y el iPad. Consulta el historial antes de responder, identifica lo que necesita atención y pregunta por la información de tu equipo sin cambiar de herramienta.\n\nCONVERSACIONES CON CONTEXTO\nFiltra la cola por canal, responsable y estado. Responde a las conversaciones disponibles, asume su atención y añade notas internas. El historial local y los borradores guardados te ayudan a retomar el trabajo.\n\nENCUENTRA EL CONTACTO ADECUADO\nBusca por nombre, correo o teléfono. Combina filtros por segmento y campaña y abre una conversación por WhatsApp QR desde un contacto con teléfono válido y una conexión activa.\n\nCOMENTARIOS EN EL MISMO FLUJO\nSigue los comentarios de Instagram y Facebook. Marca spam y bloquea autores en la cola de atención. Ocultar comentarios de Instagram depende de los permisos de la conexión; bloquear en la cola no bloquea el perfil en la red social.\n\nUN ASISTENTE PARA TU MAUTIC\nConsulta campañas, contactos e información de tu instalación con el asistente. Compartir con el proveedor de IA requiere tu consentimiento y puede desactivarse en Configuración.\n\nTUS CONEXIONES, SEPARADAS\nAñade una o más instalaciones por URL e inicia sesión con tu cuenta. Alterna entre cuentas con sesiones separadas. Muestra y comparte la imagen QR de una conexión de WhatsApp que necesita vincularse.\n\nAVISOS EN EL IPHONE\nRecibe notificaciones enviadas directamente por tu instalación Mautic. Configura tus preferencias y sigue las conversaciones según tus permisos.\n\nDisponible en portugués, inglés y español, con temas claro y oscuro.\n\nPARA EMPEZAR\nRequiere una instalación Mautic con la API mobile compatible y un usuario autorizado. Los canales, el asistente, la moderación y las notificaciones dependen de la configuración de la instalación y los permisos de la cuenta. Abrir una conversación desde un contacto no envía mensajes automáticamente. Para vincular WhatsApp, usa Dispositivos vinculados y escanea el QR en otra pantalla.",
+    "footer": "Pantalla real de la app · Datos de demostración",
+    "hero": "Tu atención.\nDonde estés.",
+    "hero_body": "Conversaciones, comentarios y un asistente\nconectados a tu Mautic.",
+    "slides": [
+      [
+        "01-conversas",
+        "01-conversas",
+        "ATENCIÓN MULTICANAL",
+        "Tu cola.\nTodo a la vista.",
+        "Encuentra lo que necesita atención\npor canal, responsable y estado."
+      ],
+      [
+        "02-chat",
+        "02-chat",
+        "CONVERSACIONES CON CONTEXTO",
+        "Más contexto.\nMejores respuestas.",
+        "Historial y notas internas\nen la misma conversación."
+      ],
+      [
+        "03-assistente",
+        "04-assistente",
+        "ASISTENTE CONECTADO",
+        "Consulta a\ntu Mautic.",
+        "Explora campañas y contactos\ncon los permisos de tu cuenta."
+      ],
+      [
+        "04-comentarios",
+        "03-comentarios",
+        "COMENTARIOS Y MODERACIÓN",
+        "Tu comunidad.\nEn la misma cola.",
+        "Sigue los comentarios\ny organiza la moderación."
+      ],
+      [
+        "05-conexoes",
+        "05-conexoes",
+        "MÚLTIPLES CONEXIONES",
+        "Tus Mautics.\nUna aplicación.",
+        "Añade la URL, inicia sesión\ny alterna entre instalaciones."
+      ]
+    ]
+  }
+}

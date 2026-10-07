@@ -1,0 +1,159 @@
+{
+  "expo": {
+    "name": "Mautic Inbox",
+    "slug": "mautic-inbox-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "mautic-inbox-demo",
+    "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.distributionmachine.mauticinbox.demo",
+      "versionCode": 10,
+      "softwareKeyboardLayoutMode": "resize",
+      "allowBackup": false,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#244184"
+      },
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.distributionmachine.mauticinbox.demo",
+      "supportsTablet": true,
+      "appleTeamId": "SB6QYUH97U",
+      "buildNumber": "24",
+      "privacyManifests": {
+        "NSPrivacyTracking": false,
+        "NSPrivacyTrackingDomains": [],
+        "NSPrivacyCollectedDataTypes": [
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailAddress",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeUserID",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeDeviceID",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeEmailsOrTextMessages",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherUserContent",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeProductInteraction",
+            "NSPrivacyCollectedDataTypeLinked": true,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          }
+        ]
+      },
+      "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true
+      }
+    },
+    "plugins": [
+      "./plugins/withLaunchImage.cjs",
+      "expo-font",
+      "expo-secure-store",
+      [
+        "expo-sqlite",
+        {
+          "useSQLCipher": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Selecione uma imagem para anexar à conversa.",
+          "cameraPermission": "Use a câmera ao escolher uma foto para a conversa."
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Use o microfone ao gravar uma mensagem de áudio.",
+          "enableBackgroundRecording": false,
+          "enableBackgroundPlayback": false
+        }
+      ],
+      "expo-notifications",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F4F7FB",
+          "image": "./assets/icon.png",
+          "imageWidth": 88,
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#000000",
+            "image": "./assets/icon.png"
+          }
+        }
+      ],
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false,
+          "style": "dark"
+        }
+      ],
+      "expo-video",
+      "expo-asset",
+      "expo-web-browser",
+      [
+        "expo-localization",
+        {
+          "supportedLocales": [
+            "pt-BR",
+            "en",
+            "es"
+          ]
+        }
+      ]
+    ],
+    "web": {
+      "name": "Mautic Inbox · Demo",
+      "bundler": "metro"
+    },
+    "icon": "./assets/icon.png",
+    "locales": {
+      "pt-BR": "./src/i18n/locales/pt-BR.json",
+      "en": "./src/i18n/locales/en.json",
+      "es": "./src/i18n/locales/es.json"
+    }
+  }
+}

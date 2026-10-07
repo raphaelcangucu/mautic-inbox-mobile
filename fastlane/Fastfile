@@ -1,0 +1,374 @@
+require "json"
+require "shellwords"
+require "digest"
+require "time"
+require_relative "review_draft"
+require_relative "listing_guard"
+default_platform(:ios)
+ROOT = File.expand_path("..", __dir__)
+CONFIG = JSON.parse(File.read(File.join(ROOT, "app.json"))).fetch("expo")
+APP_IDENTIFIER = CONFIG.fetch("ios").fetch("bundleIdentifier")
+APPLE_TEAM_ID = CONFIG.fetch("ios").fetch("appleTeamId")
+VERSION = JSON.parse(File.read(File.join(ROOT, "package.json"))).fetch("version")
+BUILD = CONFIG.fetch("ios").fetch("buildNumber")
+WORKSPACE_DIR = ENV.fetch("MAUTIC_IOS_RELEASE_WORKSPACE", "/tmp/mautic-inbox-release")
+
+def private_connect_key
+  ensure_env_vars(env_vars: %w[APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_ISSUER_ID APP_STORE_CONNECT_KEY_PATH])
+  key_path = File.expand_path(ENV.fetch("APP_STORE_CONNECT_KEY_PATH"))
+  UI.user_error!("Keep the Apple key outside the project") if key_path.start_with?(ROOT + "/")
+  UI.user_error!("Apple key unavailable") unless File.file?(key_path)
+  key_path = File.realpath(key_path)
+  UI.user_error!("Keep the Apple key outside the project") if key_path.start_with?(ROOT + "/")
+  UI.user_error!("Apple key must be readable only by its owner (chmod 600)") unless (File.stat(key_path).mode & 0077).zero?
+  app_store_connect_api_key(key_id: ENV.fetch("APP_STORE_CONNECT_KEY_ID"), issuer_id: ENV.fetch("APP_STORE_CONNECT_ISSUER_ID"), key_filepath: key_path, in_house: false)
+end
+
+# Android publication is independent of Apple credentials and provisioning.
+ANDROID_PACKAGE = CONFIG.fetch("android").fetch("package")
+ANDROID_CODE = CONFIG.fetch("android").fetch("versionCode")
+
+def private_play_key
+  ensure_env_vars(env_vars: %w[GOOGLE_PLAY_JSON_KEY])
+  path = File.realpath(File.expand_path(ENV.fetch("GOOGLE_PLAY_JSON_KEY")))
+  UI.user_error!("Keep the Play service account outside the project, chmod 600") if path.start_with?(ROOT + "/") || !(File.stat(path).mode & 0077).zero?
+  key = JSON.parse(File.read(path))
+  UI.user_error!("A Google service-account key is required") unless key["type"] == "service_account" && key["private_key"] && key["client_email"]
+  path
+end
+
+def verified_android_bundle
+  ensure_env_vars(env_vars: %w[ANDROID_AAB_PATH BUNDLETOOL_JAR])
+  path = File.realpath(ENV.fetch("ANDROID_AAB_PATH"))
+  sh("python3", File.join(ROOT, "scripts/android-preflight.py"), "--aab", path)
+  path
+end
+
+platform :android do
+  desc "Create a dedicated private upload key once; never replaces an existing key"
+  lane :init_upload_key do
+    sh("python3", File.join(ROOT, "scripts/android-release.py"), "init-key")
+  end
+
+  desc "Validate source and release tooling without a device or production database"
+  lane :check do
+    Dir.chdir(ROOT) do
+      sh("npm", "run", "typecheck")
+      sh("npm", "test")
+      sh("python3", "-m", "unittest", "discover", "-s", "scripts/tests", "-p", "test_android_*.py")
+    end
+  end
+
+  desc "Fresh Expo prebuild in a dedicated Android workspace; no emulator"
+  lane :prepare do
+    sh("python3", File.join(ROOT, "scripts/android-release.py"), "prepare")
+  end
+
+  desc "Build a signed AAB and audit manifest, signature and 16KB native libraries"
+  lane :bundle do
+    check
+    sh("python3", File.join(ROOT, "scripts/android-release.py"), "bundle")
+    ENV["ANDROID_AAB_PATH"] = File.join(ROOT, "artifacts/publication/android/Mautic-Inbox-#{VERSION}-#{ANDROID_CODE}.aab")
+    verified_android_bundle
+  end
+
+  desc "Refresh Expo configuration and build with unchanged locked dependencies in the prepared workspace"
+  lane :refresh_bundle do
+    check
+    sh("python3", File.join(ROOT, "scripts/android-release.py"), "refresh-bundle")
+    ENV["ANDROID_AAB_PATH"] = File.join(ROOT, "artifacts/publication/android/Mautic-Inbox-#{VERSION}-#{ANDROID_CODE}.aab")
+    verified_android_bundle
+  end
+
+  desc "Validate actual package access, tracks and bundle codes using a temporary uncommitted Play edit"
+  lane :credentials do
+    # The standard credential action only constructs a client and catches auth
+    # errors. Exercise package access and fail on an actual API rejection.
+    require "supply/client"
+    client = Supply::Client.make_from_config(params: { json_key: private_play_key })
+    begin
+      client.begin_edit(package_name: ANDROID_PACKAGE)
+      codes = client.aab_version_codes
+      tracks = client.tracks.map do |track|
+        { track: track.track, releases: Array(track.releases).map { |r| { status: r.status, versionCodes: r.version_codes } } }
+      end
+      report = { checkedAt: Time.now.utc.iso8601, package: ANDROID_PACKAGE,
+        packageAccessVerified: true, aabVersionCodes: codes, tracks: tracks,
+        committed: false, scope: "Package access only; no upload, publication or metadata change" }
+      File.write(File.join(ROOT, "artifacts/publication/android/play-api-access.json"), JSON.pretty_generate(report) + "\n")
+      UI.success("Play API package access verified for #{ANDROID_PACKAGE}; bundle codes #{codes.join(', ')}")
+    ensure
+      client.abort_current_edit if client.current_edit
+    end
+  end
+
+  desc "Export a signature-verified APK from the audited AAB for the physical Android device"
+  lane :device_apk do
+    verified_android_bundle
+    sh("python3", File.join(ROOT, "scripts/android-device-package.py"))
+  end
+
+  desc "Upload only to the internal track as a draft; never sends a production release"
+  lane :internal_draft do
+    path = verified_android_bundle
+    upload_to_play_store(package_name: ANDROID_PACKAGE, json_key: private_play_key,
+      aab: path, track: "internal", release_status: "draft",
+      skip_upload_metadata: true, skip_upload_images: true, skip_upload_screenshots: true,
+      skip_upload_changelogs: true)
+  end
+
+  desc "Distribute the audited bundle to internal testers after Play onboarding is complete"
+  lane :internal_test do
+    path = verified_android_bundle
+    upload_to_play_store(package_name: ANDROID_PACKAGE, json_key: private_play_key,
+      aab: path, track: "internal", release_status: "completed",
+      skip_upload_metadata: true, skip_upload_images: true, skip_upload_screenshots: true,
+      metadata_path: File.join(ROOT, "fastlane/android-metadata"))
+  end
+
+  desc "Stage the audited bundle on the existing Alpha closed-test track; send review from Play Console"
+  lane :closed_test do
+    path = verified_android_bundle
+    sh("python3", File.join(ROOT, "scripts/android-preflight.py"), "--assets")
+    upload_to_play_store(package_name: ANDROID_PACKAGE, json_key: private_play_key,
+      aab: path, track: "alpha", release_status: "completed",
+      changes_not_sent_for_review: true,
+      skip_upload_metadata: true, skip_upload_images: true, skip_upload_screenshots: true,
+      metadata_path: File.join(ROOT, "fastlane/android-metadata"))
+  end
+
+  desc "Activate the existing internal draft without re-uploading its version code"
+  lane :activate_internal_draft do
+    verified_android_bundle
+    upload_to_play_store(package_name: ANDROID_PACKAGE, json_key: private_play_key,
+      track: "internal", version_code: ANDROID_CODE, rollout: "1.0", release_status: "completed",
+      skip_upload_aab: true, skip_upload_apk: true, skip_upload_metadata: true,
+      skip_upload_images: true, skip_upload_screenshots: true, skip_upload_changelogs: true)
+  end
+
+  desc "Upload Android listing text only; screenshots and release remain separate"
+  lane :listing_text do
+    sh("python3", File.join(ROOT, "scripts/android-preflight.py"), "--metadata")
+    upload_to_play_store(package_name: ANDROID_PACKAGE, json_key: private_play_key,
+      track: "internal", version_code: ANDROID_CODE, release_status: "draft",
+      changes_not_sent_for_review: true,
+      metadata_path: File.join(ROOT, "fastlane/android-metadata"), skip_upload_aab: true,
+      skip_upload_apk: true, skip_upload_images: true, skip_upload_screenshots: true,
+      skip_upload_changelogs: true)
+  end
+
+  desc "Upload reviewed native Android screenshots, branding and listing text; no binary or production release"
+  lane :listing_assets do
+    sh("python3", File.join(ROOT, "scripts/android-preflight.py"), "--assets")
+    upload_to_play_store(package_name: ANDROID_PACKAGE, json_key: private_play_key,
+      track: "internal", version_code: ANDROID_CODE, release_status: "draft",
+      changes_not_sent_for_review: true,
+      metadata_path: File.join(ROOT, "fastlane/android-metadata"), skip_upload_aab: true,
+      skip_upload_apk: true, skip_upload_images: false, skip_upload_screenshots: false,
+      skip_upload_changelogs: true)
+  end
+
+  desc "Read back committed Play listing text and image hashes; does not publish or upload"
+  lane :verify_listing do
+    require "supply/client"
+    client = Supply::Client.make_from_config(params: { json_key: private_play_key })
+    begin
+      client.begin_edit(package_name: ANDROID_PACKAGE)
+      available_languages = client.listings.map(&:language)
+      locales = %w[pt-BR en-US es-ES].map do |language|
+        base = File.join(ROOT, "fastlane/android-metadata", language)
+        listing = client.listing_for_language(language)
+        texts = %w[title short_description full_description].to_h do |field|
+          [field, listing.public_send(field).to_s.strip == File.read(File.join(base, "#{field}.txt")).strip]
+        end
+        images = %w[icon featureGraphic phoneScreenshots].to_h do |type|
+          remote = available_languages.include?(language) ? client.fetch_images(image_type: type, language: language) : []
+          inherited_from = nil
+          # Play displays the default icon when a translation has no override.
+          # Only accept this fallback for the shared brand icon, never for
+          # localized covers or screenshots.
+          if type == "icon" && remote.empty? && available_languages.include?("pt-BR")
+            remote = client.fetch_images(image_type: type, language: "pt-BR")
+            inherited_from = "pt-BR"
+          end
+          paths = type == "phoneScreenshots" ? Dir.glob(File.join(base, "images", type, "*.png")).sort : [File.join(base, "images", "#{type}.png")]
+          expected = paths.map { |path| Digest::SHA256.file(path).hexdigest }
+          actual = remote.map(&:sha256)
+          [type, { actual: actual, expected: expected, inheritedFrom: inherited_from, matches: actual == expected,
+            sameImages: actual.sort == expected.sort }]
+        end
+        { language: language, title: listing.title, texts: texts, images: images }
+      end
+      matches = locales.all? { |locale| locale[:texts].values.all? && locale[:images].values.all? { |item| item[:matches] } }
+      File.write(File.join(ROOT, "artifacts/publication/android/play-listing-verified.json"), JSON.pretty_generate({ checkedAt: Time.now.utc.iso8601, package: ANDROID_PACKAGE, verified: matches, locales: locales, committed: false }) + "\n")
+      UI.user_error!("Committed Play listing does not match all reviewed locales/assets; see play-listing-verified.json") unless matches
+      UI.success("Committed Play listing verified: 3 languages, 21 matching images")
+    ensure
+      client.abort_current_edit if client.current_edit
+    end
+  end
+end
+
+def ensure_review_detail
+  app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+  UI.user_error!("App Store record is missing") unless app
+  version = app.get_edit_app_store_version(platform: Spaceship::ConnectAPI::Platform::IOS)
+  UI.user_error!("Unexpected editable store version") unless version && version.version_string == VERSION
+  response = Spaceship::ConnectAPI.get_app_store_review_detail(app_store_version_id: version.id)
+  notes_path = ENV.fetch("MAUTIC_APP_REVIEW_NOTES_FILE", File.join(ROOT, "docs/APPLE-REVIEW-ACCESS.txt"))
+  UI.user_error!("Provide private review instructions through MAUTIC_APP_REVIEW_NOTES_FILE") unless File.file?(notes_path)
+  attributes = { notes: File.read(notes_path) }
+  credentials_path = ENV["MAUTIC_APP_REVIEW_CREDENTIALS_FILE"]
+  if credentials_path && !credentials_path.empty?
+    path = File.realpath(credentials_path)
+    UI.user_error!("Keep review credentials outside the project, readable only by the owner") if path.start_with?(ROOT + "/") || !(File.stat(path).mode & 0077).zero?
+    credentials = JSON.parse(File.read(path))
+    UI.user_error!("A limited review account is required") unless credentials["scope"] == "own" && !credentials.fetch("username", "").empty? && credentials.fetch("password", "").length >= 16
+    attributes.merge!(demo_account_required: true, demo_account_name: credentials.fetch("username"), demo_account_password: credentials.fetch("password"))
+  end
+  # Apple's first-version record can have a null review detail. Deliver otherwise
+  # raises 'No data' while inspecting attachments, before uploading screenshots.
+  unless response.body && response.body["data"]
+    version.create_app_store_review_detail(attributes: { demo_account_required: false }.merge(attributes))
+  else
+    # Refresh instructions on an existing version without replacing the owner's
+    # review contact or changing the configured review-account requirement.
+    detail = version.fetch_app_store_review_detail
+    UI.user_error!("Review details could not be loaded") unless detail
+    detail.update(attributes: attributes)
+  end
+end
+
+def verified_export_compliance(ipa_path)
+  path = File.join(ROOT, "artifacts/publication/encryption-assessment.json")
+  UI.user_error!("Review encryption for the signed build before TestFlight upload") unless File.file?(path)
+  report = JSON.parse(File.read(path))
+  valid = report["ipaSha256"] == Digest::SHA256.file(ipa_path).hexdigest && report["version"] == VERSION && report["build"].to_s == BUILD.to_s && [true, false].include?(report["usesNonExemptEncryption"])
+  UI.user_error!("Encryption assessment belongs to a different signed build") unless valid
+  report.fetch("usesNonExemptEncryption")
+end
+
+platform :ios do
+  desc "Save the restricted review account and WebChat instructions without submitting"
+  lane :review_access do
+    ensure_env_vars(env_vars: %w[MAUTIC_APP_REVIEW_CREDENTIALS_FILE])
+    private_connect_key
+    ensure_review_detail
+    UI.success("Review account and visitor WebChat instructions saved. No submission or release.")
+  end
+  desc "Validate app and release configuration without accessing Mautic production data"
+  lane :check do
+    sh("npm", "run", "typecheck")
+    sh("npm", "test")
+    sh("python3", "-m", "unittest", "discover", "-s", File.join(ROOT, "scripts/tests"), "-p", "test_*.py")
+    sh("python3", File.join(ROOT, "scripts/release_preflight.py"), "--source")
+    sh("ruby", File.join(ROOT, "fastlane/tests/review_draft_test.rb"))
+    sh("ruby", File.join(ROOT, "fastlane/tests/listing_guard_test.rb"))
+  end
+
+  desc "Prepare a separate native workspace with production APNs configuration"
+  lane :prepare do
+    UI.user_error!("Release workspace must be outside the project and have no spaces") if WORKSPACE_DIR.start_with?(ROOT) || WORKSPACE_DIR.include?(" ")
+    sh("mkdir", "-p", WORKSPACE_DIR)
+    sh("rsync", "-a", "--exclude", "node_modules", "--exclude", "android", "--exclude", "ios", "--exclude", "artifacts", "--exclude", "dist", "--exclude", ".expo", "--exclude", ".git", "--exclude", ".env*", ROOT + "/", WORKSPACE_DIR + "/")
+    Dir.chdir(WORKSPACE_DIR) do
+      # A previous workspace can contain dependencies from another lockfile.
+      # Always install the captured release dependency graph before prebuild.
+      sh("npm", "ci", "--include=dev", "--no-audit", "--no-fund")
+      ENV["MAUTIC_APNS_ENVIRONMENT"] = "production"
+      sh("./node_modules/.bin/expo", "prebuild", "--platform", "ios", "--no-install")
+      Dir.chdir("ios") { sh("bundle", "exec", "pod", "install") }
+    end
+  end
+
+  desc "Archive and export an Apple-signed production build; no upload or automatic signing mutations"
+  lane :archive do
+    check
+    prepare
+    ensure_env_vars(env_vars: %w[IOS_PROVISIONING_PROFILE_NAME])
+    build_app(workspace: File.join(WORKSPACE_DIR, "ios/MauticInbox.xcworkspace"), scheme: "MauticInbox", configuration: "Release", sdk: "iphoneos", destination: "generic/platform=iOS", clean: false, codesigning_identity: "Apple Distribution: Raphael Cangucu (SB6QYUH97U)", export_method: "app-store", export_team_id: APPLE_TEAM_ID, output_directory: File.join(ROOT,"artifacts/publication"), output_name: "Mautic-Inbox-#{VERSION}-#{BUILD}.ipa", buildlog_path: File.join(ROOT,"artifacts/publication/logs"), xcargs: "DEVELOPMENT_TEAM=#{APPLE_TEAM_ID} CODE_SIGN_STYLE=Manual PROVISIONING_PROFILE_SPECIFIER=#{ENV.fetch('IOS_PROVISIONING_PROFILE_NAME').shellescape} CODE_SIGN_IDENTITY='Apple Distribution' CURRENT_PROJECT_VERSION=#{BUILD} MARKETING_VERSION=#{VERSION}", export_options: { provisioningProfiles: { APP_IDENTIFIER => ENV.fetch("IOS_PROVISIONING_PROFILE_NAME") }, signingStyle: "manual", teamID: APPLE_TEAM_ID })
+    sh("python3", File.join(ROOT, "scripts/release_preflight.py"), "--ipa", lane_context[SharedValues::IPA_OUTPUT_PATH])
+  end
+
+  desc "Upload the signed and verified build to internal TestFlight, without external distribution"
+  lane :internal_testflight do
+    ensure_env_vars(env_vars: %w[IOS_IPA_PATH])
+    sh("python3", File.join(ROOT, "scripts/release_preflight.py"), "--ipa", ENV.fetch("IOS_IPA_PATH"))
+    upload_to_testflight(api_key: private_connect_key, ipa: ENV.fetch("IOS_IPA_PATH"), app_identifier: APP_IDENTIFIER, uses_non_exempt_encryption: verified_export_compliance(ENV.fetch("IOS_IPA_PATH")), distribute_external: false, notify_external_testers: false, skip_waiting_for_build_processing: false, changelog: "Atendimento multicanal, assistente, comentários, moderação e notificações diretas do Mautic no iPhone.")
+  end
+
+  desc "Generate localized headlines, metadata and artwork from the current native captures"
+  lane :product_assets do
+    sh("python3", File.join(ROOT, "scripts/build-ios-product-assets.py"))
+  end
+
+  desc "Upload reviewed product artwork and localized metadata only to an editable version"
+  lane :store_listing do
+    product_assets
+    sh("python3", File.join(ROOT, "scripts/package-ios-product-assets.py"), "--check")
+    sh("python3", File.join(ROOT, "scripts/release_preflight.py"), "--listing")
+    key = private_connect_key
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    UI.user_error!("App Store record is missing") unless app && app.bundle_id == APP_IDENTIFIER
+    version = app.get_edit_app_store_version(platform: Spaceship::ConnectAPI::Platform::IOS)
+    begin
+      MauticListingGuard.validate!(version: version, expected_version: VERSION)
+    rescue RuntimeError => error
+      UI.user_error!(error.message)
+    end
+    ensure_review_detail
+    assets_path = File.join(ROOT, "artifacts/publication/product-assets-ios-#{BUILD}")
+    upload_to_app_store(api_key: key, app_identifier: APP_IDENTIFIER, app_version: VERSION, metadata_path: File.join(assets_path, "metadata"), screenshots_path: File.join(assets_path, "screenshots"), skip_binary_upload: true, overwrite_screenshots: true, submit_for_review: false, automatic_release: false, force: true, run_precheck_before_submit: false, precheck_include_in_app_purchases: false)
+  end
+
+  desc "Submit an existing processed build only after documented physical push and flow validation"
+  lane :app_store_review do
+    ensure_env_vars(env_vars: %w[IOS_IPA_PATH])
+    sh("python3", File.join(ROOT, "scripts/release_preflight.py"), "--submission", "--ipa", ENV.fetch("IOS_IPA_PATH"))
+    key = private_connect_key
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    UI.user_error!("App Store record is missing") unless app && app.bundle_id == APP_IDENTIFIER
+    staged = MauticReviewDraft.load(app: app, version_string: VERSION, build_number: BUILD, api: Spaceship::ConnectAPI)
+    if staged
+      UI.user_error!("Store metadata precheck failed") unless precheck(api_key: key, app_identifier: APP_IDENTIFIER, platform: "ios", include_in_app_purchases: false)
+      # Read the draft again immediately before the single final mutation.
+      # Never remove someone else's items or cancel a draft to satisfy Deliver.
+      sh("python3", File.join(ROOT, "scripts/release_preflight.py"), "--submission", "--ipa", ENV.fetch("IOS_IPA_PATH"))
+      fresh = MauticReviewDraft.load(app: app, version_string: VERSION, build_number: BUILD, api: Spaceship::ConnectAPI)
+      UI.user_error!("Review draft changed during verification") unless fresh && fresh[:draft].id == staged[:draft].id && fresh[:item].id == staged[:item].id && fresh[:build].id == staged[:build].id
+      fresh[:draft].submit_for_review
+      remote = Spaceship::ConnectAPI::ReviewSubmission.get(review_submission_id: fresh[:draft].id)
+      UI.user_error!("Apple has not confirmed submission; inspect the existing draft before retrying") unless remote && %w[WAITING_FOR_REVIEW IN_REVIEW COMPLETE].include?(remote.state) && remote.submitted_date
+      UI.success("Apple confirmed submission of #{VERSION} (#{BUILD}); release remains manual")
+    else
+      upload_to_app_store(api_key: key, app_identifier: APP_IDENTIFIER, app_version: VERSION, build_number: BUILD, skip_binary_upload: true, skip_metadata: true, skip_screenshots: true, submit_for_review: true, automatic_release: false, force: true, run_precheck_before_submit: true, precheck_include_in_app_purchases: false)
+    end
+  end
+
+  desc "Read Apple's version and review state without submitting, releasing or changing metadata"
+  lane :review_status do
+    private_connect_key
+    app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+    UI.user_error!("App Store record is missing") unless app && app.bundle_id == APP_IDENTIFIER
+    versions = app.get_app_store_versions(filter: { platform: "IOS", versionString: VERSION })
+    UI.user_error!("Unexpected store versions") unless versions.length == 1
+    version = versions.fetch(0)
+    build = version.get_build
+    UI.user_error!("Apple selected a different build") unless build && build.version.to_s == BUILD.to_s
+    submission = app.get_in_progress_review_submission(platform: "IOS") || app.get_ready_review_submission(platform: "IOS")
+    report = { checkedAt: Time.now.utc.iso8601, appId: app.id, version: version.version_string,
+      build: build.version, storeState: version.app_version_state, releaseType: version.release_type,
+      contentRights: app.content_rights_declaration,
+      reviewSubmission: submission && { id: submission.id, state: submission.state, submittedDate: submission.submitted_date },
+      verificationMode: "read-only" }
+    File.write(File.join(ROOT, "artifacts/publication/review-status-#{BUILD}.json"), JSON.pretty_generate(report) + "\n")
+    UI.success("#{VERSION} (#{BUILD}): #{version.app_version_state}; #{version.release_type}")
+  end
+
+  desc "Build, verify and upload to internal TestFlight; App Store review remains separate"
+  lane :release do
+    archive
+    ENV["IOS_IPA_PATH"] = lane_context[SharedValues::IPA_OUTPUT_PATH]
+    internal_testflight
+  end
+end

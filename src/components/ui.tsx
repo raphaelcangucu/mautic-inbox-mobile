@@ -1,0 +1,46 @@
+import {t} from '../i18n/engine';
+import React from 'react';
+import {View,Text,Pressable,TextInput,Image,StyleSheet,Platform,type TextProps,type ViewStyle} from 'react-native';
+import {Icon} from './Icon';
+export {Icon} from './Icon';
+import * as Haptics from 'expo-haptics';
+import {useTheme,font} from '../theme';
+import {useApp} from '../store/app';
+import {channels,type Conversation} from '../api/types';
+export function T({size=14,bold=false,muted=false,color,style,...props}:TextProps&{size?:number;bold?:boolean;muted?:boolean;color?:string}){const c=useTheme();return <Text {...props} style={[{fontFamily:bold?font.bold:font.regular,fontSize:size,lineHeight:size*1.65,includeFontPadding:false,color:color||(muted?c.soft:c.ink)},style]}/>}
+export function Tap({label,onPress,children,style,disabled=false,testID}:{label?:string;onPress:()=>void;children:React.ReactNode;style?:ViewStyle;disabled?:boolean;testID?:string}){return <Pressable accessibilityRole="button" accessibilityLabel={label} testID={testID} hitSlop={4} disabled={disabled} onPress={()=>{void Haptics.selectionAsync().catch(()=>{});onPress()}} style={({pressed})=>[{minHeight:44,justifyContent:'center',...(style?.flexDirection==='row'?{alignItems:'center' as const}:{}),opacity:disabled?.45:pressed?.7:1},style]}>{children}</Pressable>}
+export function Button({label,onPress,quiet=false,disabled=false,testID}:{label:string;onPress:()=>void;quiet?:boolean;disabled?:boolean;testID?:string}){const c=useTheme();return <Tap label={label} testID={testID} onPress={onPress} disabled={disabled} style={{backgroundColor:quiet?c.paper:c.blue,borderRadius:13,borderWidth:quiet?1:0,borderColor:c.line,paddingHorizontal:16,paddingVertical:12,alignItems:'center'}}><T bold size={12} color={quiet?c.blue:c.paper}>{label}</T></Tap>}
+export function Card({children,style}:{children:React.ReactNode;style?:ViewStyle}){const c=useTheme();return <View style={[{backgroundColor:c.paper,borderRadius:16,borderWidth:1,borderColor:c.line,padding:15,gap:8},style]}>{children}</View>}
+export function Field({label,value,onChange,placeholder,keyboardType='default',testID,multiline=false,code=false}:{label:string;value:string;onChange:(s:string)=>void;placeholder?:string;keyboardType?:React.ComponentProps<typeof TextInput>['keyboardType'];testID?:string;multiline?:boolean;code?:boolean}){const c=useTheme();return <View style={{gap:7}}><T size={12} bold>{label}</T><TextInput accessibilityLabel={label} testID={testID} value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={c.faint} keyboardType={keyboardType} autoCapitalize="none" autoCorrect={false} textContentType={code?"oneTimeCode":keyboardType==="email-address"?"emailAddress":undefined} autoComplete={code?"one-time-code":keyboardType==="email-address"?"email":undefined} maxLength={code?6:undefined} multiline={multiline} style={{backgroundColor:c.raised,color:c.ink,fontFamily:font.regular,fontSize:12,includeFontPadding:false,minHeight:44,padding:13,borderWidth:1,borderColor:c.line,borderRadius:13}}/></View>}
+const avatars={camila:require('../../assets/avatars/camila.png'),ricardo:require('../../assets/avatars/ricardo.png'),bia:require('../../assets/avatars/bia.png'),lucas:require('../../assets/avatars/lucas.png')};
+export function Avatar({conversation,size=42,showChannel=true}:{conversation:Conversation;size?:number;showChannel?:boolean}){const c=useTheme();const [failedAvatar,setFailedAvatar]=React.useState<string|null>(null);return <View>{conversation.mobile.avatarKey?<Image source={avatars[conversation.mobile.avatarKey]} style={{width:size,height:size,borderRadius:size===42?15:size===36?12:size*.34375}}/>:conversation.avatar_url&&failedAvatar!==conversation.avatar_url?<Image onError={()=>setFailedAvatar(conversation.avatar_url)} source={{uri:conversation.avatar_url}} style={{width:size,height:size,borderRadius:size*.34375}}/>:<View style={{width:size,height:size,borderRadius:size*.34375,backgroundColor:c.tint,alignItems:'center',justifyContent:'center'}}><T bold size={size*.32} color={c.blue}>{conversation.contact_name.slice(0,2).toUpperCase()}</T></View>}{showChannel&&<View style={{position:'absolute',bottom:-3,right:-3,width:17,height:17,borderWidth:1,borderColor:c.line,borderRadius:6,backgroundColor:c.paper,alignItems:'center',justifyContent:'center'}}><T size={9} color={c.blue} bold>{conversation.channel==='whatsapp'?'W':conversation.channel==='instagram'?'◎':conversation.channel==='facebook'?'f':'◌'}</T></View>}</View>}
+export function Brand(){const c=useTheme();return <View style={{height:28,width:28,backgroundColor:c.blue,borderRadius:9,alignItems:'center',justifyContent:'center'}}><T bold size={18} color={c.paper}>m</T></View>}
+export function Top(){
+ const c=useTheme();const s=useApp();const count=s.conversations.filter(x=>!x.moderation?.spam&&!x.moderation?.blockedAuthor&&(x.unread>0||x.needs_response)).length;
+ return <View style={{height:57,flexDirection:'row',gap:10,alignItems:'center',paddingHorizontal:18}}>
+  <Tap onPress={()=>s.navigate('accounts')} label={t("nav.switchMautic")} style={{flex:1,flexDirection:'row',gap:7,justifyContent:'flex-start'}}><Brand/><T bold size={14} numberOfLines={1}>{s.active?.name||'Mautic Inbox'}</T><Icon name="chevron-down" size={13}/></Tap>
+  <Tap onPress={()=>s.navigate('notifications')} label={count?t('nav.notificationsCount',{count}):t('nav.notifications')} style={{width:40,minHeight:40,height:40,borderWidth:1,borderColor:c.line,borderRadius:12,backgroundColor:c.paper,alignItems:'center'}}><Icon name="notifications-outline" size={22} strokeWidth={1.9}/>{count>0&&<View pointerEvents="none" style={{position:'absolute',right:-5,top:-5,minWidth:18,paddingHorizontal:4,height:18,borderWidth:2,borderColor:c.paper,borderRadius:9,backgroundColor:c.blue,alignItems:'center',justifyContent:'center'}}><T size={9} bold color={c.paper} style={{lineHeight:12}}>{count>99?'99+':count}</T></View>}</Tap>
+  <Tap onPress={()=>s.navigate('preferences')} label={t("nav.preferences")} style={{width:40,minHeight:40,height:40,borderWidth:1,borderColor:c.line,backgroundColor:c.paper,borderRadius:12,alignItems:'center'}}><Icon name="settings-outline" size={22} strokeWidth={1.9}/></Tap>
+ </View>
+}
+export function Header({title,right,onBack}:{title:string;right?:React.ReactNode;onBack?:()=>void}){const c=useTheme();const back=useApp(s=>s.back);return <View style={{flexDirection:'row',gap:10,alignItems:'center',paddingHorizontal:12,paddingVertical:10,backgroundColor:c.paper}}><Tap onPress={onBack||back} label={t("common.back")} style={{width:38,alignItems:'center'}}><Icon name="chevron-back"/></Tap><T bold size={14} style={{flex:1}}>{title}</T>{right}</View>}
+export function Tabs({bottomInset}:{bottomInset:number}){
+ const c=useTheme();
+ const route=useApp(s=>s.route);
+ const navigate=useApp(s=>s.navigate);
+ const entries=[['inbox',t("nav.conversations"),'chatbubbles-outline'],['assistant',t("nav.assistant"),'sparkles-outline'],['contacts',t("nav.contacts"),'person-outline'],['accounts',t("nav.account"),'settings-outline']] as const;
+ // Center the icon/label group with equal 12 pt outer padding on iOS.
+ // The touch area ends above the home indicator; other platforms keep their system inset.
+ const verticalPadding=12;
+ const bottomPadding=Platform.OS==='ios'?verticalPadding:verticalPadding+bottomInset;
+ return <View testID="bottom-tabs" style={{flexDirection:'row',borderTopWidth:1,borderColor:c.line,backgroundColor:c.paper,paddingHorizontal:6,paddingTop:verticalPadding,paddingBottom:bottomPadding}}>
+  {entries.map(([key,label,icon])=><Tap key={key} onPress={()=>navigate(key)} label={label} testID={'tab-'+key} style={{flex:1,minHeight:44,alignItems:'center',gap:2}}>
+   <View style={{width:44,height:28,backgroundColor:route===key?c.tint:'transparent',borderRadius:10,alignItems:'center',justifyContent:'center'}}><Icon name={icon} size={22} strokeWidth={route===key?2:1.85} color={route===key?c.blue:c.soft}/></View>
+   <T size={9} style={{lineHeight:12}} bold={route===key} color={route===key?c.blue:c.soft}>{label}</T>
+  </Tap>)}
+ </View>
+}
+export function ChannelLabel({conversation}:{conversation:Conversation}){const c=useTheme();return <T size={10} color={c.soft}>{channels[conversation.channel]} · {conversation.mobile.ai?t('common.aiAgent'):conversation.assignee?.id===useApp.getState().active?.user.id?t('common.you'):conversation.assignee?.name||t('filter.unassigned')}</T>}
+export const styles=StyleSheet.create({row:{flexDirection:'row',alignItems:'center',gap:10},body:{padding:20,gap:16},iconButton:{width:40,alignItems:'center'}});
+
+export function DetailRow({label,value}:{label:string;value:string}){const c=useTheme();return <View style={{flexDirection:'row',alignItems:'flex-start',justifyContent:'space-between',gap:12,borderTopWidth:1,borderColor:c.line,paddingVertical:9}}><T size={11} muted style={{flex:1}}>{label}</T><T size={11} bold style={{flex:1,textAlign:'right'}}>{value}</T></View>}

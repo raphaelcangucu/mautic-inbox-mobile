@@ -1,0 +1,8 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "Mautic Inbox",
+    "NSPhotoLibraryUsageDescription": "Select an image to attach to the conversation.",
+    "NSCameraUsageDescription": "Use the camera to take a photo for the conversation.",
+    "NSMicrophoneUsageDescription": "Use the microphone to record an audio message."
+  }
+}

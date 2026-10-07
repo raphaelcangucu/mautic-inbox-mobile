@@ -1,0 +1,1 @@
+mautic,inbox,chat,support,whatsapp,crm,contacts,assistant,comments,notifications

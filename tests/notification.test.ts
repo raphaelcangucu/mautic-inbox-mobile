@@ -1,0 +1,4 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {suppressNotification} from '../src/api/notification-policy.ts';
+test('foreground suppression requires matching account, conversation and preference',()=>{const state={active:{id:'macro'},route:'chat',conversationId:1,preferences:{suppressOpen:true}};assert.equal(suppressNotification(state,{accountId:'macro',conversationId:1}),true);assert.equal(suppressNotification(state,{accountId:'studio',conversationId:1}),false);assert.equal(suppressNotification(state,{accountId:'macro',conversationId:2}),false);assert.equal(suppressNotification({...state,route:'inbox'},{accountId:'macro',conversationId:1}),false);assert.equal(suppressNotification({...state,preferences:{suppressOpen:false}},{accountId:'macro',conversationId:1}),false)});

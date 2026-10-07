@@ -1,0 +1,18 @@
+Atención multicanal en tu iPhone.
+
+Conecta las instancias compatibles de Mautic de tu equipo y gestiona conversaciones, comentarios y contactos en una sola app.
+
+• Cambia entre instancias y usuarios con sesiones separadas.
+• Organiza la cola por canal, responsable y estado.
+• Responde, asume conversaciones y registra notas internas.
+• Sigue comentarios de Instagram y Facebook.
+• Filtra contactos por segmento o campaña y busca por nombre, correo o teléfono.
+• Inicia una conversación por WhatsApp QR desde un contacto con un teléfono válido.
+• Muestra y comparte como imagen el código QR de un número que necesita conectarse a WhatsApp.
+• Marca spam y bloquea autores en la cola de atención. Ocultar comentarios de Instagram depende de los permisos de la conexión.
+• Consulta información de tu instancia con el asistente.
+• Recibe notificaciones enviadas directamente desde Mautic a tu iPhone.
+• Navega con historial local y borradores guardados.
+• Elige portugués, inglés o español, o usa el idioma de tu dispositivo.
+
+La app requiere una instancia de Mautic con una API móvil compatible y un usuario autorizado. Los canales y las funciones disponibles dependen de la configuración y los permisos de tu instancia. Bloquear autores en atención no bloquea sus perfiles en redes sociales. Para vincular WhatsApp, escanea el código QR en otra pantalla con la opción Dispositivos vinculados de WhatsApp. Iniciar desde un contacto abre la conversación; el operador envía el mensaje.

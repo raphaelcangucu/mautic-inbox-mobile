@@ -1,0 +1,1 @@
+Ajuste de permissões: reprodução de áudio e vídeo somente com o app aberto. Atendimento multicanal, assistente e filtros por segmento e campanha.
