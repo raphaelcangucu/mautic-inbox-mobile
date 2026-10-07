@@ -75,6 +75,12 @@ bundle exec ruby fastlane/tests/listing_guard_test.rb
 
 Real connections always use their API and local real-data cache. API failures never switch to fictional data. On a phone, shake only on the **Connections** screen, enable test connections, then select a clearly marked mocked account. The app shows a persistent mock banner and hides test mode again after restarting. Demo tools and simulated notifications stay out of normal connections. See [test-mode behavior](docs/TEST-MODE.md).
 
+## Internal assistants and user permissions
+
+Configure an **Internal assistant** in the Mautic **Agents** screen, select its tools and authorize the existing user roles. Its MCP connection uses the current Mautic account. Effective tools are the configured selection intersected with the user's permissions; the server also enforces access to each contact, campaign and conversation. Customer-facing agents keep their separate channel workflow.
+
+The app lists only authorized assistants and stores history separately for each account and agent. Users without access still see the Assistant tab, which shows restricted access and no composer. An API failure never enables a cached or demo assistant. This release supports read-only tools; assistant-driven sending or moderation requires a separate execution flow.
+
 ## Native builds
 
 `ios/` and `android/` are generated from `app.json`, `app.config.cjs` and `plugins/`; generated projects are deliberately untracked. Icon, fonts and sample media under `assets/` are referenced by the app and required to build.
