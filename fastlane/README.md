@@ -87,6 +87,14 @@ Upload only to the internal track as a draft; never sends a production release
 
 Distribute the audited bundle to internal testers after Play onboarding is complete
 
+### android closed_test
+
+```sh
+[bundle exec] fastlane android closed_test
+```
+
+Stage the audited bundle on the existing Alpha closed-test track; send review from Play Console
+
 ### android activate_internal_draft
 
 ```sh

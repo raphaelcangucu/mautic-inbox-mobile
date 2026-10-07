@@ -1,0 +1,1 @@
+Mautic multichannel inbox, comments and assistant. Android browser sign-in now selects a compatible browser for returning to the app when a Mautic web shortcut is installed. Removed an unused background audio service.

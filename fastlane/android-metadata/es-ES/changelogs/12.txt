@@ -1,0 +1,4 @@
+Controles de demostración ocultos en conexiones reales.
+El modo simulado requiere agitar en Conexiones y seleccionar una cuenta simulada.
+Asistente con campo de mensaje compacto y ajustes de IA en el encabezado.
+Los errores de API conservan el historial real sin cambiar a datos ficticios.

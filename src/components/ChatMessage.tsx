@@ -6,10 +6,11 @@ import type {Message} from '../api/types';
 import {useTheme} from '../theme';
 import {T,Tap,Icon} from './ui';
 import {Media} from './Media';
+import {MessageBody} from './MessageBody';
 import {groupChatMessages,sameChatDay} from './chat-timeline';
 
 
-export function ChatMessage({message:m,previous,comment,onEmail,onCheck}:{message:Message;previous?:Message;comment:boolean;onEmail:(email:string)=>void;onCheck:()=>void}){
+export function ChatMessage({message:m,previous,comment,whatsapp=false,onEmail,onCheck}:{message:Message;previous?:Message;comment:boolean;whatsapp?:boolean;onEmail:(email:string)=>void;onCheck:()=>void}){
  const statusLabel:Record<string,string>={sending:t('receipt.sending'),pending:t('receipt.pending'),sent:t('receipt.sent'),accepted:t('receipt.sent'),delivered:t('receipt.delivered'),read:t('receipt.read'),uncertain:t('receipt.uncertain'),failed:t('receipt.failed')};
  const c=useTheme();const note=m.kind==='note';const out=m.kind==='outbound'||m.direction==='outbound';
  const grouped=groupChatMessages(previous,m);const day=!previous||!sameChatDay(previous,m);
@@ -24,7 +25,7 @@ export function ChatMessage({message:m,previous,comment,onEmail,onCheck}:{messag
    {m.ai&&<T bold size={10} color={c.blue} style={{lineHeight:14,marginBottom:3}}>{m.ai} · {t('filter.ai')}</T>}
    {m.kind==='comment'&&<T size={10} color={c.blue} style={{lineHeight:14,marginBottom:3}}>{t("chat.publicComment")}</T>}
    {comment&&m.replyMode&&<T size={10} color={c.blue} style={{lineHeight:14,marginBottom:3}}>{m.replyMode==='private'?t("chat.privateReply"):t("chat.publicReply")}</T>}
-   {!!m.body&&<T size={15} style={{lineHeight:21}}>{m.body}</T>}
+   {!!m.body&&<MessageBody body={m.body} whatsapp={whatsapp} onEmail={onEmail}/>}
    {email&&<Tap label={t("chat.saveEmail")} onPress={()=>onEmail(email)} style={{minHeight:44}}><T size={11} bold color={c.blue}>{t("chat.saveEmail")}</T></Tap>}
    {m.attachment&&<Media attachment={m.attachment}/>}
    <View accessible accessibilityLabel={time+(out&&m.status?', '+statusLabel[m.status]:'')} style={{flexDirection:'row',alignItems:'center',justifyContent:'flex-end',gap:4,marginTop:3}}>

@@ -83,3 +83,14 @@ google-services.json
 !/docs/media/03-assistente.png
 !/docs/media/04-comentarios.png
 !/docs/media/05-conexoes.png
+
+# Public test-mode behavior and native smoke flow
+!/docs/TEST-MODE.md
+!/e2e/
+/e2e/*
+!/e2e/flows/
+/e2e/flows/*
+!/e2e/flows/live-without-demo.yaml
+
+# Reusable read-only swipe navigation validation
+!/e2e/flows/ios-swipe-back.yaml

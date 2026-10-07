@@ -1,0 +1,1 @@
+Bandeja multicanal, comentarios y asistente de Mautic. El acceso de Android elige un navegador compatible para volver a la app cuando está instalado el acceso web de Mautic. Se eliminó un servicio de audio en segundo plano sin uso.

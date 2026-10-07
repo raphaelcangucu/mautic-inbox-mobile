@@ -1,0 +1,85 @@
+appId: com.distributionmachine.mauticinbox.demo
+name: Conversation and comment swipe-back without sending
+---
+- launchApp
+- tapOn:
+    id: tab-inbox
+- tapOn:
+    id: kind-inbox
+- tapOn:
+    id: search-conversations
+- eraseText
+- inputText: ${CONTACT_QUERY}
+- hideKeyboard:
+    optional: true
+- tapOn:
+    id: conversation-${CONVERSATION_ID}
+- assertVisible:
+    id: chat-swipe-back-area
+# Vertical scrolling and a short edge swipe must keep this conversation open.
+- swipe:
+    start: 50%, 45%
+    end: 50%, 68%
+    duration: 500
+- assertVisible:
+    id: chat-swipe-back-area
+- swipe:
+    start: 96%, 50%
+    end: 89%, 50%
+    duration: 500
+- assertVisible:
+    id: chat-swipe-back-area
+- tapOn:
+    id: composer
+- inputText: Swipe navigation draft
+- hideKeyboard:
+    optional: true
+- swipe:
+    start: 96%, 50%
+    end: 22%, 50%
+    duration: 500
+- assertVisible:
+    id: tab-inbox
+- takeScreenshot: ${EVIDENCE_DIR}/conversation-return
+- tapOn:
+    id: conversation-${CONVERSATION_ID}
+- assertVisible: Swipe navigation draft
+- tapOn:
+    id: composer
+- eraseText
+- hideKeyboard:
+    optional: true
+- swipe:
+    start: 3%, 50%
+    end: 78%, 50%
+    duration: 500
+- assertVisible:
+    id: tab-inbox
+- tapOn:
+    id: search-conversations
+- eraseText
+- hideKeyboard:
+    optional: true
+- tapOn:
+    id: kind-comments
+- tapOn:
+    id: conversation-${COMMENT_ID}
+- assertVisible:
+    id: chat-swipe-back-area
+- swipe:
+    start: 96%, 50%
+    end: 22%, 50%
+    duration: 500
+- assertVisible:
+    id: tab-inbox
+- assertVisible: ${COMMENTS_TITLE}
+- takeScreenshot: ${EVIDENCE_DIR}/comments-return
+- tapOn:
+    id: conversation-${COMMENT_ID}
+- swipe:
+    start: 3%, 50%
+    end: 78%, 50%
+    duration: 500
+- assertVisible:
+    id: tab-inbox
+- assertVisible: ${COMMENTS_TITLE}
