@@ -1,1 +1,1 @@
-Asistente interno con permisos por usuario, informes diarios de campañas, consultas de flujos Instagram y WhatsApp y acciones revisadas para responder, editar campañas, asociar contactos y transferir conversaciones.
+Reintenta mensajes fallidos desde la conversación. Cada intento actualiza la misma burbuja, con errores de envío más claros y diagnósticos para compartir. La comprobación del estado y los identificadores estables evitan envíos duplicados.

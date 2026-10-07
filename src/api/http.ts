@@ -75,7 +75,7 @@ export class HttpTransport implements Transport {
   if(input.path==='/inbox/api/updates')return {...raw,conversations:raw.conversations.map((c:any)=>this.normalize(c)),timeline:raw.timeline.map(messageFromApi)} as T;
   if(/\/history$/.test(input.path))return {...raw,items:raw.items.map(messageFromApi)} as T;
   if(/\/conversations\/\d+(?:\/(take|state|moderation|email-actions))?$/.test(input.path)||(/\/contacts\/\d+\/start$/.test(input.path)&&input.method==='POST')||(/\/ai$/.test(input.path)&&input.method==='POST'))return this.normalize(raw) as T;
-  if(/\/reply$/.test(input.path))return {...raw,item:raw.item?messageFromApi(raw.item):undefined,summary:raw.summary?this.normalize(raw.summary):undefined} as T;
+  if(/\/(reply|retry)$/.test(input.path))return {...raw,item:raw.item?messageFromApi(raw.item):undefined,summary:raw.summary?this.normalize(raw.summary):undefined} as T;
   return raw as T;
  }
 }

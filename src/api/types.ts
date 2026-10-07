@@ -24,7 +24,7 @@ export type Conversation = {
   // Explicit mobile/mock additions, not fields claimed to exist in InboxQuery.
   mobile: {avatarKey?: 'camila'|'ricardo'|'bia'|'lucas'; ai: boolean; window_open: boolean; attachments: boolean};
 };
-export type Message = {kind: 'message'|'comment'|'outbound'|'note'|'event'|'automatic'; id: number | string; body: string; timestamp: string; direction?: 'inbound'|'outbound'; request_id?: string; status?: 'sending'|'uncertain'|'failed'|'pending'|'sent'|'delivered'|'read'; author?: string; attachment?: Attachment; ai?:string; replyMode?:'public'|'private'};
+export type Message = {kind: 'message'|'comment'|'outbound'|'note'|'event'|'automatic'; id: number | string; body: string; timestamp: string; direction?: 'inbound'|'outbound'; request_id?: string; status?: 'sending'|'uncertain'|'failed'|'pending'|'sent'|'delivered'|'read'; retryable?:boolean; failure?:string|null; failure_code?:string|null; cooldown_seconds?:number|null; retry_of?:string|null; attempt_count?:number; display_id?:number|string; author?: string; attachment?: Attachment; ai?:string; replyMode?:'public'|'private'};
 export type Page<T> = {items: T[]; next_cursor: string | null; complete?:boolean};
 export type Template = {id: number; name: string; language: string; category: string; supported: boolean; preview: string; fields: {key: string; token: string; component: string}[]; parts: {type: string; text: string}[]};
 export type Outbox = {request_id: string; conversationId: number; body: string; mode: 'reply'|'note'; timestamp: string; status: 'sending'|'uncertain'|'failed'; template_id?: number; variables?: Record<string,string>; attachment?: Attachment; replyMode?:'public'|'private'};

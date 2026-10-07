@@ -1,1 +1,1 @@
-Assistente interno com permissões por usuário, relatórios diários de campanhas, consulta de fluxos Instagram e WhatsApp e revisão de ações de resposta, alteração de campanha, associação de contatos e transferência de atendimento.
+Reenvie mensagens com falha diretamente na conversa. Cada tentativa atualiza a mesma bolha, com erros de envio mais claros e diagnóstico para compartilhar. A conferência do status e os identificadores estáveis evitam envios duplicados.

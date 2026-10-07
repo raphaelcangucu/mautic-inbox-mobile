@@ -6,6 +6,7 @@ import ts from 'typescript';
 import {create} from 'zustand';
 import {accountStorageId,bootAccount,visibleAccounts} from '../src/store/demo-mode.ts';
 import {ShakeDetector} from '../src/hooks/shake-detector.ts';
+import {newDeliveryFailure} from '../src/api/delivery-diagnostics.ts';
 import {HttpTransport} from '../src/api/http.ts';
 import {MockTransport} from '../src/api/mock.ts';
 import {InboxRepository} from '../src/api/repository.ts';
@@ -32,7 +33,7 @@ function harness(accounts:Account[]=[],activeId:string|null=null){
  const source=ts.transpileModule(fs.readFileSync(new URL('../src/store/app.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
  const modules:any={
  '../i18n/engine.ts':{t:(key:string)=>key},'zustand':{create},'react-native':{Platform:{OS:'web'}},
- '../api/reply-mode':{initialReplyMode:()=> 'public'},'../api/push-accounts':{},'../api/notification-policy':{},'../api/native-push':{},
+ '../api/delivery-diagnostics':{newDeliveryFailure},'../api/reply-mode':{initialReplyMode:()=> 'public'},'../api/push-accounts':{},'../api/notification-policy':{},'../api/native-push':{},
  '../api/http':{HttpTransport:FailedHttp},'@react-native-async-storage/async-storage':{getItem:async()=>metadata,setItem:async(_:string,value:string)=>{metadata=value}},
  'expo-crypto':{},'expo-notifications':{},'../storage/disk':{openDisk:async(id:string)=>disk(id),deleteAccountDisk:async()=>{}},
  '../storage/vault':{readSession:async(id:string)=>sessions.get(id)||null,saveSession:async(id:string,s:Session)=>{sessions.set(id,s)},deleteSession:async(id:string)=>{sessions.delete(id)}},
