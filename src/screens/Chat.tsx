@@ -3,11 +3,13 @@ import {replyAccess} from '../api/reply-mode';
 import {OverlayModal} from '../components/OverlayModal';
 import {ConversationActions,type Panel} from '../components/ConversationActions';
 import {Sheet} from '../components/Sheet';
+import {WhatsQrConnections} from '../components/WhatsQrConnections';
+import {inspectQrConnection,qrConversation,qrNeedsRecovery,pairingLabel,type QrPairing} from '../api/whatsqr';
 import {publicationURL,openPublication} from '../api/publication';
 import {Media} from '../components/Media';
 import {ChatMessage} from '../components/ChatMessage';
 import {visibleChatMessages} from '../components/chat-timeline';
-import {Linking,Alert} from 'react-native';
+import {Linking,Alert,AppState} from 'react-native';
 import React,{useEffect,useRef,useState,useMemo} from 'react';
 import {View,FlatList,TextInput,ScrollView,Keyboard} from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
@@ -18,13 +20,30 @@ import {useTheme,font} from '../theme';
 import {T,Tap,Icon,Avatar,Button,Field,Card} from '../components/ui';
 import {channels,messageKey,type Message,type Template} from '../api/types';
 export function Chat(){
+ const [qrRequest,setQrRequest]=useState(0);const [qrState,setQrState]=useState<QrPairing|null>(null);const qrProbe=useRef(0);
  const c=useTheme();const s=useApp();const conversation=s.conversations.find(x=>x.id===s.conversationId);const list=useRef<FlatList<Message>>(null);const atEnd=useRef(true);const restoring=useRef(true);const messages=s.messages[s.conversationId]||[];const visibleMessages=useMemo(()=>visibleChatMessages(messages),[messages]);const reversed=useMemo(()=>[...visibleMessages].reverse(),[visibleMessages]);const [menu,setMenu]=useState(false);const [contextSheet,setContextSheet]=useState(false);const [panel,setPanel]=useState<Panel>(null);const [email,setEmail]=useState('');const [templates,setTemplates]=useState<Template[]>([]);const [templateSheet,setTemplateSheet]=useState(false);const [templateReason,setTemplateReason]=useState('');const [selected,setSelected]=useState<Template|null>(null);const [variables,setVariables]=useState<Record<string,string>>({});const [attachmentSheet,setAttachmentSheet]=useState(false);
  const [postSheet,setPostSheet]=useState(false);const [postBusy,setPostBusy]=useState(false);const [postError,setPostError]=useState('');
  const recorder=useAudioRecorder(RecordingPresets.HIGH_QUALITY);const recording=useAudioRecorderState(recorder);
  useEffect(()=>{restoring.current=true;atEnd.current=true;const timer=setTimeout(()=>{const offset=s.view.chatOffsets[s.conversationId];if(offset!==undefined){list.current?.scrollToOffset({offset,animated:false});atEnd.current=false}else list.current?.scrollToOffset({offset:0,animated:false});restoring.current=false},150);return()=>clearTimeout(timer)},[s.conversationId]);
  useEffect(()=>{if(!restoring.current&&atEnd.current){requestAnimationFrame(()=>list.current?.scrollToOffset({offset:0,animated:true}));useApp.setState({unseen:0})}},[visibleMessages.length]);
  const viewability=useRef(({viewableItems}:{viewableItems:any[]})=>{const st=useApp.getState();const data=visibleChatMessages(st.messages[st.conversationId]||[]);const last=data.at(-1);if(last&&viewableItems.some(x=>messageKey(x.item)===messageKey(last))){void st.read()}const first=viewableItems[0]?.item;if(first)st.setView({chatAnchors:{...st.view.chatAnchors,[st.conversationId]:messageKey(first)}})}).current;
+ const qr=!!conversation&&qrConversation(conversation)&&s.active?.mode==='live';
+ async function checkQr(recover=false){
+  if(!qr||!conversation||!s.repo||s.offline)return;
+  const sequence=++qrProbe.current;const id=conversation.id;const account=s.active?.id;const repo=s.repo;
+  const fresh=await inspectQrConnection(repo.api,conversation.asset.id);const current=useApp.getState();
+  if(sequence!==qrProbe.current||current.active?.id!==account||current.repo!==repo||current.route!=='chat'||current.conversationId!==id)return;
+  setQrState(fresh);if(recover&&fresh&&qrNeedsRecovery(fresh)){Keyboard.dismiss();setQrRequest(value=>value+1)}
+ }
+ useEffect(()=>{
+  if(!qr||!s.repo)return;const probe=()=>{if(AppState.currentState==='active')void checkQr()};probe();const timer=setInterval(probe,15000);const listener=AppState.addEventListener('change',state=>{if(state==='active')probe()});
+  return()=>{qrProbe.current++;clearInterval(timer);listener.remove()};
+ },[qr,s.repo,conversation?.asset.id,s.active?.id]);
  if(!conversation)return <View style={{padding:24}}><T>{t("chat.unavailable")}</T><Button label={t("common.back")} onPress={s.back}/></View>;
+ async function sendReply(template?:Template,variables?:Record<string,string>){
+  if(qr&&s.mode==='reply'&&qrState&&qrNeedsRecovery(qrState)){Keyboard.dismiss();setQrRequest(value=>value+1);return false}
+  const accepted=await s.send(template,variables);if(qr&&s.mode==='reply')await checkQr(true);return accepted;
+ }
  async function publication(){Keyboard.dismiss();setPostSheet(true);setPostError('');if(s.active?.mode!=='live'||!s.repo||postBusy)return;setPostBusy(true);try{const origins=await s.repo.api.request<{items:any[]}>({method:'GET',path:`/inbox/api/conversations/${conversation!.id}/publication`,query:{refresh:1}});const source=origins.items[0];if(source&&useApp.getState().active?.id===s.active?.id&&useApp.getState().conversationId===conversation!.id){const current=useApp.getState().conversations.find(x=>x.id===conversation!.id);if(!current)return;const updated={...current,comment:{...current.comment!,postTitle:source.title||current.comment?.postTitle||t("chat.publication"),postBody:source.caption||'',commentBody:source.body||current.comment?.commentBody||'',permalink:source.permalink||'',image:source.image||null}};await s.repo.saveConversations([updated]);useApp.setState({conversations:useApp.getState().conversations.map(x=>x.id===updated.id?updated:x)})}}catch{setPostError(t("chat.postRefreshError"))}finally{setPostBusy(false)}}
  async function externalPost(){const result=await openPublication(conversation?.comment?.permalink,conversation!.channel,url=>Linking.openURL(url));if(result!=='opened')setPostError(result==='missing'?t("chat.postMissing"):t("chat.postOpenError"))}
  const comment=conversation.kind==='comments';const access=replyAccess(conversation,s.replyMode,s.active?.user.id||0,s.active?.mode==='live');const {reply,blocked}=access;
@@ -36,7 +55,7 @@ export function Chat(){
  const suggest=()=>{if(s.active?.mode==='live')s.navigate('assistant');else{s.setDraft(t("chat.demoSuggestion"));s.notify(t("chat.draftSuggested"))}};
  const choose=(action:()=>void)=>{setMenu(false);action()};
  const actionRow=(label:string,icon:string,onPress:()=>void,options:{testID?:string;selected?:boolean;disabled?:boolean}={})=><Tap key={label} label={label} testID={options.testID} disabled={options.disabled} onPress={()=>choose(onPress)} style={{minHeight:46,flexDirection:'row',gap:12,justifyContent:'flex-start',paddingVertical:8}}><Icon name={icon} size={20} color={options.selected?c.blue:c.soft}/><T size={14} bold={options.selected} style={{flex:1,lineHeight:20}}>{label}</T>{options.selected&&<Icon name="check" size={18} color={c.blue}/>}</Tap>;
- const render=({item,index}:{item:Message;index:number})=><ChatMessage message={item} previous={reversed[index+1]} comment={comment} whatsapp={conversation.channel==='whatsapp'} onEmail={value=>{setEmail(value);setPanel('crm')}} onCheck={()=>void s.sync()}/>;
+ const render=({item,index}:{item:Message;index:number})=><ChatMessage message={item} previous={reversed[index+1]} comment={comment} whatsapp={conversation.channel==='whatsapp'} onEmail={value=>{setEmail(value);setPanel('crm')}} onCheck={()=>{void s.sync();void checkQr(true)}}/>;
  return <View style={{flex:1}}><View testID="compact-chat-header" style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:8,paddingVertical:6,backgroundColor:c.paper,borderBottomWidth:1,borderColor:c.line}}>
  <Tap label={t("chat.backInbox")} onPress={()=>{Keyboard.dismiss();s.navigate('inbox')}} style={{width:36,minHeight:44,alignItems:'center'}}><Icon name="chevron-back" size={21}/></Tap>
  <Avatar conversation={conversation} size={34} showChannel={false}/>
@@ -46,6 +65,7 @@ export function Chat(){
  {(access.reason||s.offline)&&s.mode==='reply'&&<View testID="reply-blocked-reason" style={{paddingHorizontal:18,paddingVertical:8,backgroundColor:c.warnBg}}><T size={11} color={c.warn}>{s.offline?t("inbox.offline"):access.reason}</T></View>}
  {access.take&&s.mode==='reply'&&<Button quiet label={t("chat.takeReply")} testID="take-to-reply" disabled={s.offline} onPress={take}/>}
  {conversation.lifecycle==='resolved'&&s.mode==='reply'&&<Button quiet label={t("chat.reopenReply")} disabled={s.offline} onPress={()=>void s.transition('reopen')}/>}
+ {qr&&qrState&&qrNeedsRecovery(qrState)&&s.mode==='reply'&&<Tap testID="chat-qr-recovery" label={t("qr.manageConnection")} onPress={()=>{Keyboard.dismiss();setQrRequest(value=>value+1)}} style={{paddingHorizontal:16,paddingVertical:8,backgroundColor:c.warnBg,flexDirection:'row',gap:8,justifyContent:'flex-start'}}><T size={11} color={c.warn} style={{flex:1,lineHeight:16}}>{pairingLabel(qrState)}</T><T size={11} bold color={c.blue} style={{lineHeight:16}}>{t("qr.manageConnection")}</T></Tap>}
  {comment&&(conversation.moderation?.spam||conversation.moderation?.blockedAuthor||conversation.moderation?.hidden)&&<View style={{paddingHorizontal:12,paddingVertical:6,backgroundColor:c.warnBg}}><T size={11} color={c.warn} style={{lineHeight:16}}>{conversation.moderation.blockedAuthor?t("chat.blocked"):conversation.moderation.spam?t("chat.spam"):(s.active?.mode==='mock'?t("chat.hiddenDemo"):t("chat.hiddenInstagram"))}</T></View>}
  <FlatList ref={list} data={reversed} inverted renderItem={render} keyExtractor={messageKey} style={{flex:1}} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" contentContainerStyle={{paddingHorizontal:12,paddingVertical:8}} maintainVisibleContentPosition={{minIndexForVisible:0}} onViewableItemsChanged={viewability} viewabilityConfig={{itemVisiblePercentThreshold:40}} onScroll={e=>{const event=e.nativeEvent;atEnd.current=event.contentOffset.y<80;if(!restoring.current)s.setView({chatOffsets:{...s.view.chatOffsets,[s.conversationId]:event.contentOffset.y}})}} scrollEventThrottle={160} onContentSizeChange={()=>{if(restoring.current&&s.view.chatOffsets[s.conversationId]===undefined)list.current?.scrollToOffset({offset:0,animated:false})}} ListFooterComponent={s.cursor?<Tap label={t("chat.older")} onPress={()=>void s.older()} style={{alignItems:'center',minHeight:44}}><T size={12} color={c.blue}>{t("chat.older")}</T></Tap>:null} ListEmptyComponent={<T muted>{t("chat.loadingHistory")}</T>}/>
  {s.unseen>0&&!atEnd.current&&<Button label={t("chat.newMessages",{count:s.unseen})} onPress={()=>{list.current?.scrollToOffset({offset:0,animated:true});useApp.setState({unseen:0});atEnd.current=true}}/>}
@@ -58,12 +78,14 @@ export function Chat(){
  {(s.mode==='note'||comment)&&<Tap label={t("chat.changeMode")} onPress={()=>{Keyboard.dismiss();setMenu(true)}} style={{minHeight:28,paddingHorizontal:10,flexDirection:'row',gap:5,justifyContent:'flex-start'}}><Icon name={s.mode==='note'?'lock-closed-outline':s.replyMode==='public'?'globe-outline':'lock-closed-outline'} size={12} color={s.mode==='note'?c.warn:c.blue}/><T size={10} bold color={s.mode==='note'?c.warn:c.blue} style={{lineHeight:14}}>{s.mode==='note'?t("chat.internalTeam"):s.replyMode==='public'?t("chat.publicReply"):t("chat.privateReply")}</T><Icon name="chevron-down" size={12} color={c.soft}/></Tap>}
  <TextInput accessibilityLabel={t("chat.message")} testID="composer" placeholder={s.mode==='note'?t("chat.teamPlaceholder"):t("chat.messagePlaceholder")} placeholderTextColor={c.faint} value={s.draft} onChangeText={s.setDraft} multiline maxLength={4000} style={{minHeight:44,maxHeight:120,paddingHorizontal:10,paddingVertical:10,includeFontPadding:false,fontSize:15,lineHeight:21,fontFamily:font.regular,color:c.ink,textAlignVertical:'top'}}/>
  </View>
- <Tap label={s.draft.trim()||s.attachment?(comment&&s.mode==='reply'?(s.replyMode==='public'?t("chat.sendPublic"):t("chat.sendPrivate")):s.mode==='note'?t("chat.saveNote"):t("chat.send")):recording.isRecording?t("chat.finishRecording"):conversation.mobile.attachments?t("chat.record"):t("chat.send")} testID="send" disabled={s.offline||(s.mode==='reply'&&(blocked||!reply.available))} onPress={()=>{if(s.draft.trim()||s.attachment){atEnd.current=true;void s.send();}else if(conversation.mobile.attachments)void voice();else s.notify(t("chat.writeHint"))}} style={{width:44,height:44,borderRadius:14,backgroundColor:recording.isRecording?c.warn:c.blue,alignItems:'center'}}><Icon name={s.draft.trim()||s.attachment?'arrow-up':recording.isRecording?'stop':conversation.mobile.attachments?'mic-outline':'arrow-up'} color={c.paper}/></Tap>
+ <Tap label={s.draft.trim()||s.attachment?(comment&&s.mode==='reply'?(s.replyMode==='public'?t("chat.sendPublic"):t("chat.sendPrivate")):s.mode==='note'?t("chat.saveNote"):t("chat.send")):recording.isRecording?t("chat.finishRecording"):conversation.mobile.attachments?t("chat.record"):t("chat.send")} testID="send" disabled={s.offline||(s.mode==='reply'&&(blocked||!reply.available))} onPress={()=>{if(s.draft.trim()||s.attachment){atEnd.current=true;void sendReply();}else if(conversation.mobile.attachments)void voice();else s.notify(t("chat.writeHint"))}} style={{width:44,height:44,borderRadius:14,backgroundColor:recording.isRecording?c.warn:c.blue,alignItems:'center'}}><Icon name={s.draft.trim()||s.attachment?'arrow-up':recording.isRecording?'stop':conversation.mobile.attachments?'mic-outline':'arrow-up'} color={c.paper}/></Tap>
  </View>{recording.isRecording&&<T size={11} color={c.warn}>{t("chat.recording",{seconds:Math.round(recording.durationMillis/1000)})}</T>}
  </View>
+ {qr&&<WhatsQrConnections assetId={conversation.asset.id} request={qrRequest} hideTrigger onConnected={()=>{void s.sync();void checkQr()}}/>}
  <Sheet title={t("chat.details")} visible={contextSheet} onClose={()=>setContextSheet(false)}><T bold size={17}>{conversation.contact_name}</T><T size={13} muted>{channels[conversation.channel]} · {conversation.asset.name}</T>{conversation.origins.campaign&&conversation.origins.campaign!==conversation.asset.name&&<T size={13}>{t("actions.campaignLabel",{name:conversation.origins.campaign})}</T>}{conversation.origins.page&&<T size={12} muted>{conversation.origins.page}</T>}<T size={13}>{conversation.assignee?(t("chat.assignee")+" "+conversation.assignee.name):t("filter.unassigned")}</T><Button quiet label={t("chat.contactHistory")} onPress={()=>{setContextSheet(false);s.navigate('contact')}}/>{comment&&<Button quiet label={t("chat.viewOriginal")} onPress={()=>{setContextSheet(false);void publication()}}/>}</Sheet>
  <Sheet title={t("chat.actions")} visible={menu} onClose={()=>setMenu(false)}>
  <View>
+ {qr&&actionRow(t("qr.manageConnection"),'refresh',()=>setQrRequest(value=>value+1),{testID:'chat-open-qr-connection'})}
  {actionRow(t("chat.suggest"),'sparkles-outline',suggest)}
  {actionRow(t("chat.canned"),'chatbubbles-outline',()=>setPanel('canned'),{testID:'open-canned'})}
  {conversation.channel==='whatsapp'&&actionRow(t("chat.whatsappTemplates"),'document-text-outline',()=>void cta(),{testID:'templates'})}
