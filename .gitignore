@@ -73,3 +73,13 @@ google-services.json
 *.db
 *.db-shm
 *.db-wal
+
+# Selected public product images for the README
+!/docs/media/
+/docs/media/*
+!/docs/media/hero.png
+!/docs/media/01-conversas.png
+!/docs/media/02-chat.png
+!/docs/media/03-assistente.png
+!/docs/media/04-comentarios.png
+!/docs/media/05-conexoes.png

@@ -1,8 +1,61 @@
-# Mautic Inbox Mobile
+# Mautic Inbox
 
-Native multichannel support client for Mautic, built with Expo, React Native and TypeScript. Supports iOS and Android, conversations, social comments, contacts, assistant, multiple connections and direct native push. UI languages: Portuguese, English and Spanish.
+## Seu atendimento. Onde você estiver.
 
-The server integration is maintained separately in [Mautic Inbox Bundle](https://github.com/raphaelcangucu/mautic-inbox-bundle). Live channels and assistant access require a compatible Mautic installation and the user's permissions. Demo mode uses local fictional data.
+**Leve as conversas do seu Mautic para o celular.** Responda com o histórico à mão, acompanhe comentários e consulte campanhas e contatos com um assistente conectado à sua instalação.
+
+![Mautic Inbox: conversas, comentários e assistente conectados ao seu Mautic](docs/media/hero.png)
+
+Feito para equipes que atendem clientes e precisam acompanhar a fila mesmo longe do computador. No iPhone, no iPad e no Android, seu Mautic acompanha o seu trabalho.
+
+**[Acompanhe o lançamento e as próximas versões](https://github.com/raphaelcangucu/mautic-inbox-mobile/releases)** · [Privacidade e suporte](https://mautic-inbox-privacidade-e-suporte.me-21d3.chatgpt.site/)
+
+### Mais contexto para cada resposta
+
+- **Veja o que precisa de atenção.** Reúna os canais conectados ao seu Mautic e filtre a fila por canal, responsável e estado. WhatsApp, Instagram, Facebook e WebChat entram no mesmo fluxo de atendimento.
+- **Retome a conversa de onde parou.** Consulte o histórico, registre notas internas e use respostas prontas. Histórico local e rascunhos ajudam a continuar o trabalho entre telas.
+- **Pergunte ao seu Mautic.** Consulte campanhas, contatos e informações da instalação pelo assistente, com as permissões da sua conta e consentimento para compartilhar dados com o provedor de IA.
+- **Encontre a pessoa certa.** Busque contatos por nome, e-mail ou telefone. Combine segmentos e campanhas e abra uma conversa pelo WhatsApp QR quando houver telefone válido e conexão ativa.
+- **Cuide também dos comentários.** Acompanhe Instagram e Facebook, marque spam e organize a moderação na fila. Bloquear um autor no atendimento não bloqueia seu perfil na rede social.
+- **Alterne entre seus Mautics.** Adicione as URLs, autentique suas contas e mantenha as sessões separadas. Receba notificações enviadas pela instalação que você conectou.
+
+### Conheça o aplicativo
+
+<table>
+  <tr>
+    <td align="center" width="33%"><a href="docs/media/01-conversas.png"><img src="docs/media/01-conversas.png" width="250" alt="Fila de conversas com filtros por canal, responsável e estado" /></a><br /><strong>Sua fila, à vista</strong></td>
+    <td align="center" width="33%"><a href="docs/media/02-chat.png"><img src="docs/media/02-chat.png" width="250" alt="Chat compacto com histórico e ações ao lado da mensagem" /></a><br /><strong>Responda com contexto</strong></td>
+    <td align="center" width="33%"><a href="docs/media/03-assistente.png"><img src="docs/media/03-assistente.png" width="250" alt="Assistente conectado para consultar campanhas e contatos" /></a><br /><strong>Consulte seu Mautic</strong></td>
+  </tr>
+</table>
+<table>
+  <tr>
+    <td align="center" width="50%"><a href="docs/media/04-comentarios.png"><img src="docs/media/04-comentarios.png" width="250" alt="Fila de comentários do Instagram e Facebook" /></a><br /><strong>Acompanhe sua comunidade</strong></td>
+    <td align="center" width="50%"><a href="docs/media/05-conexoes.png"><img src="docs/media/05-conexoes.png" width="250" alt="Tela de conexões para alternar entre instalações Mautic" /></a><br /><strong>Vários Mautics, um app</strong></td>
+  </tr>
+</table>
+
+*Imagens da interface nativa iOS com dados de demonstração. Toque nas imagens para ver os detalhes. Disponível em português, inglês e espanhol, com temas claro e escuro.*
+
+### Prepare sua equipe para atender pelo celular
+
+1. Tenha uma instalação Mautic com a [Inbox Mobile API compatível](https://github.com/raphaelcangucu/mautic-inbox-bundle).
+2. Conecte a URL da instalação e entre com seu usuário autorizado.
+3. Acompanhe a fila e atenda pelos canais habilitados para a sua conta.
+
+O aplicativo é gratuito. Canais, assistente, moderação e notificações dependem da configuração da sua instalação e das permissões do usuário.
+
+### Download nas lojas
+
+| Plataforma | Disponibilidade pública |
+| --- | --- |
+| iPhone e iPad · App Store | Em breve — versão enviada e aguardando revisão da Apple. |
+| Android · Google Play | Em breve — sem link público de download confirmado. |
+
+Os links oficiais de download serão adicionados após a liberação nas lojas. Enquanto isso, **[acompanhe as versões no GitHub](https://github.com/raphaelcangucu/mautic-inbox-mobile/releases)** ou compile o código disponível neste repositório.
+
+<details>
+<summary><strong>Para desenvolvedores: instalação, build e publicação</strong></summary>
 
 ## Install and verify
 
@@ -50,3 +103,5 @@ For subsequent listing updates, see [the asset publication workflow](docs/ASSETS
 ## Repository scope
 
 This repository contains app source, runtime assets, pinned dependency lockfiles, unit tests, build/release tooling and public listing text. Local review environments, internal QA history, cached dependencies and generated native projects are excluded. Never commit credentials, signing keys, authentication tokens, customer data or release binaries.
+
+</details>
