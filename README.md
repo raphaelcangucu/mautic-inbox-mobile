@@ -92,6 +92,8 @@ The build scripts create isolated temporary workspaces and keep outputs in ignor
 
 ## Signed release with Fastlane
 
+Git release tags use **`vMAJOR.MINOR.PATCH`**, for example `v1.0.0`, `v1.0.1` and `v1.0.2`. Do not append TestFlight, build numbers or distribution channels to tag names. Keep those details in release metadata and PR descriptions. Advance the semantic version for each subsequent release.
+
 ```sh
 bundle exec fastlane ios archive
 bundle exec fastlane ios internal_testflight
