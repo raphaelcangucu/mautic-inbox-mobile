@@ -1,61 +1,61 @@
 # Mautic Inbox
 
-## Seu atendimento. Onde você estiver.
+## Your support desk. Wherever you are.
 
-**Leve as conversas do seu Mautic para o celular.** Responda com o histórico à mão, acompanhe comentários e consulte campanhas e contatos com um assistente conectado à sua instalação.
+**Bring your Mautic conversations to your phone.** Reply with the history at hand, follow social comments and explore campaigns and contacts with an assistant connected to your installation.
 
-![Mautic Inbox: conversas, comentários e assistente conectados ao seu Mautic](docs/media/hero.png)
+![Mautic Inbox: conversations, comments and an assistant connected to your Mautic](docs/media/hero.png)
 
-Feito para equipes que atendem clientes e precisam acompanhar a fila mesmo longe do computador. No iPhone, no iPad e no Android, seu Mautic acompanha o seu trabalho.
+Built for customer-facing teams that need to keep an eye on their queue away from the computer. On iPhone, iPad and Android, your Mautic goes with you.
 
-**[Acompanhe o lançamento e as próximas versões](https://github.com/raphaelcangucu/mautic-inbox-mobile/releases)** · [Privacidade e suporte](https://mautic-inbox-privacidade-e-suporte.me-21d3.chatgpt.site/)
+**[Follow the launch and upcoming releases](https://github.com/raphaelcangucu/mautic-inbox-mobile/releases)** · [Privacy and support](https://mautic-inbox-privacidade-e-suporte.me-21d3.chatgpt.site/)
 
-### Mais contexto para cada resposta
+### More context for every reply
 
-- **Veja o que precisa de atenção.** Reúna os canais conectados ao seu Mautic e filtre a fila por canal, responsável e estado. WhatsApp, Instagram, Facebook e WebChat entram no mesmo fluxo de atendimento.
-- **Retome a conversa de onde parou.** Consulte o histórico, registre notas internas e use respostas prontas. Histórico local e rascunhos ajudam a continuar o trabalho entre telas.
-- **Pergunte ao seu Mautic.** Consulte campanhas, contatos e informações da instalação pelo assistente, com as permissões da sua conta e consentimento para compartilhar dados com o provedor de IA.
-- **Encontre a pessoa certa.** Busque contatos por nome, e-mail ou telefone. Combine segmentos e campanhas e abra uma conversa pelo WhatsApp QR quando houver telefone válido e conexão ativa.
-- **Cuide também dos comentários.** Acompanhe Instagram e Facebook, marque spam e organize a moderação na fila. Bloquear um autor no atendimento não bloqueia seu perfil na rede social.
-- **Alterne entre seus Mautics.** Adicione as URLs, autentique suas contas e mantenha as sessões separadas. Receba notificações enviadas pela instalação que você conectou.
+- **See what needs attention.** Bring your connected channels together and filter the queue by channel, assignee and status. WhatsApp, Instagram, Facebook and WebChat share the same support workflow.
+- **Pick up where you left off.** Read the history, add internal notes and use saved replies. Local history and drafts help you continue your work as you move between screens.
+- **Ask your Mautic.** Explore campaigns, contacts and installation information with the assistant, using your account permissions and explicit consent before sharing data with the AI provider.
+- **Find the right contact.** Search by name, email or phone. Combine segment and campaign filters, then open a WhatsApp QR conversation when the contact has a valid phone number and an active connection is available.
+- **Keep comments in the conversation.** Follow Instagram and Facebook comments, mark spam and organize moderation in the support queue. Blocking an author in the queue does not block their social media profile.
+- **Switch between your Mautics.** Add installation URLs, sign in to your accounts and keep sessions separate. Receive notifications sent by the installation you connected.
 
-### Conheça o aplicativo
+### See the app in action
 
 <table>
   <tr>
-    <td align="center" width="33%"><a href="docs/media/01-conversas.png"><img src="docs/media/01-conversas.png" width="250" alt="Fila de conversas com filtros por canal, responsável e estado" /></a><br /><strong>Sua fila, à vista</strong></td>
-    <td align="center" width="33%"><a href="docs/media/02-chat.png"><img src="docs/media/02-chat.png" width="250" alt="Chat compacto com histórico e ações ao lado da mensagem" /></a><br /><strong>Responda com contexto</strong></td>
-    <td align="center" width="33%"><a href="docs/media/03-assistente.png"><img src="docs/media/03-assistente.png" width="250" alt="Assistente conectado para consultar campanhas e contatos" /></a><br /><strong>Consulte seu Mautic</strong></td>
+    <td align="center" width="33%"><a href="docs/media/01-conversas.png"><img src="docs/media/01-conversas.png" width="250" alt="Conversation queue with channel, assignee and status filters" /></a><br /><strong>Your queue, in view</strong></td>
+    <td align="center" width="33%"><a href="docs/media/02-chat.png"><img src="docs/media/02-chat.png" width="250" alt="Compact chat with conversation history and actions next to the message input" /></a><br /><strong>Reply with context</strong></td>
+    <td align="center" width="33%"><a href="docs/media/03-assistente.png"><img src="docs/media/03-assistente.png" width="250" alt="Connected assistant for exploring campaigns and contacts" /></a><br /><strong>Ask your Mautic</strong></td>
   </tr>
 </table>
 <table>
   <tr>
-    <td align="center" width="50%"><a href="docs/media/04-comentarios.png"><img src="docs/media/04-comentarios.png" width="250" alt="Fila de comentários do Instagram e Facebook" /></a><br /><strong>Acompanhe sua comunidade</strong></td>
-    <td align="center" width="50%"><a href="docs/media/05-conexoes.png"><img src="docs/media/05-conexoes.png" width="250" alt="Tela de conexões para alternar entre instalações Mautic" /></a><br /><strong>Vários Mautics, um app</strong></td>
+    <td align="center" width="50%"><a href="docs/media/04-comentarios.png"><img src="docs/media/04-comentarios.png" width="250" alt="Instagram and Facebook comments in the support queue" /></a><br /><strong>Follow your community</strong></td>
+    <td align="center" width="50%"><a href="docs/media/05-conexoes.png"><img src="docs/media/05-conexoes.png" width="250" alt="Connections screen for switching between Mautic installations" /></a><br /><strong>Your Mautics, one app</strong></td>
   </tr>
 </table>
 
-*Imagens da interface nativa iOS com dados de demonstração. Toque nas imagens para ver os detalhes. Disponível em português, inglês e espanhol, com temas claro e escuro.*
+*Native iOS screens with demo data. Click an image to see the details. Available in English, Portuguese and Spanish, with light and dark themes. Messages and contact names keep their original language.*
 
-### Prepare sua equipe para atender pelo celular
+### Bring mobile support to your team
 
-1. Tenha uma instalação Mautic com a [Inbox Mobile API compatível](https://github.com/raphaelcangucu/mautic-inbox-bundle).
-2. Conecte a URL da instalação e entre com seu usuário autorizado.
-3. Acompanhe a fila e atenda pelos canais habilitados para a sua conta.
+1. Use a Mautic installation with the [compatible Inbox Mobile API](https://github.com/raphaelcangucu/mautic-inbox-bundle).
+2. Connect your installation URL and sign in with an authorized account.
+3. Follow the queue and reply through the channels enabled for your account.
 
-O aplicativo é gratuito. Canais, assistente, moderação e notificações dependem da configuração da sua instalação e das permissões do usuário.
+The app is free. Channels, assistant, moderation and notifications depend on your installation settings and user permissions.
 
-### Download nas lojas
+### Get the app
 
-| Plataforma | Disponibilidade pública |
+| Platform | Public availability |
 | --- | --- |
-| iPhone e iPad · App Store | Em breve — versão enviada e aguardando revisão da Apple. |
-| Android · Google Play | Em breve — sem link público de download confirmado. |
+| iPhone and iPad · App Store | Coming soon — the submitted version is awaiting Apple's review. |
+| Android · Google Play | Coming soon — a public download link has not been confirmed yet. |
 
-Os links oficiais de download serão adicionados após a liberação nas lojas. Enquanto isso, **[acompanhe as versões no GitHub](https://github.com/raphaelcangucu/mautic-inbox-mobile/releases)** ou compile o código disponível neste repositório.
+Official download links will be added once the app is available in the stores. Until then, **[follow releases on GitHub](https://github.com/raphaelcangucu/mautic-inbox-mobile/releases)** or build the app from the source in this repository.
 
 <details>
-<summary><strong>Para desenvolvedores: instalação, build e publicação</strong></summary>
+<summary><strong>For developers: setup, build and release</strong></summary>
 
 ## Install and verify
 
@@ -96,12 +96,13 @@ bundle exec fastlane android bundle
 
 Provide private credentials through environment variables listed in `.env.example`, with their actual files outside the repository and owner-only permissions. iOS also requires an existing distribution certificate/profile in the local signing environment. APNs provider keys stay on the Mautic server; they never belong in the app. Existing app identifiers and build numbers are preserved. Increase build numbers before a new store binary upload.
 
-Publication metadata, localized headlines and asset-generation scripts are versioned. Screenshots, evidence, videos, signed binaries and review-account instructions are generated or supplied locally and are not committed. Store-upload gates fail until current-build captures and visual/physical validation are supplied; cloning this repository does not invent release approval.
+Publication metadata, localized headlines, asset-generation scripts and selected public product images are versioned. Full capture sets, release evidence, videos, signed binaries and review-account instructions are generated or supplied locally and are not committed. Store-upload gates fail until current-build captures and visual/physical validation are supplied; cloning this repository does not invent release approval.
 
 For subsequent listing updates, see [the asset publication workflow](docs/ASSETS-PUBLICACAO-PROXIMAS-VERSOES.md). `ios store_listing` cannot overwrite a version under active Apple review. Submission remains a separate action.
 
 ## Repository scope
 
 This repository contains app source, runtime assets, pinned dependency lockfiles, unit tests, build/release tooling and public listing text. Local review environments, internal QA history, cached dependencies and generated native projects are excluded. Never commit credentials, signing keys, authentication tokens, customer data or release binaries.
+
 
 </details>
