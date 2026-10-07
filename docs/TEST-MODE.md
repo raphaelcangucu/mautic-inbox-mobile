@@ -25,3 +25,9 @@ O gesto físico de balançar ainda precisa de validação no aparelho; os testes
 A tag `v1.0.1` inclui estes ajustes, seleção de navegador compatível com Custom Tabs no Android, formatação nativa de mensagens e melhorias de cadastro/pareamento WhatsQR já presentes na fonte. Candidatos: Android 12 e iOS 27. A validação e a publicação nas lojas permanecem etapas separadas. Evidências com contas reais ficam apenas nos artefatos locais, fora do Git.
 
 Validação da 1.0.1: 109 testes do app, 21 testes das ferramentas de publicação e TypeScript passaram. O iOS 1.0.1 (27) compilou em Release e passou no fluxo nativo de Conexões, Assistente e Preferências no simulador iOS 26.0, mantendo a conta real. Android 1.0.1 (12) compilado e auditado: SDK 36, assinatura da chave existente e bibliotecas de 16 KB. APK instalado por atualização no Moto g56, sem limpar dados; navegação física não conferida porque a tela bloqueou. Nenhum envio às lojas nesta etapa. O gesto físico permanece pendente.
+
+## Validação Android após desbloqueio
+
+O Moto g56 5G conectado por USB passou no fluxo `live-without-demo.yaml` com o APK 1.0.1 (12) derivado do AAB auditado do commit `63f28e5`. Conexões, Assistente e Preferências foram conferidos com a sessão real já existente: contas mockadas e controles demo ocultos, compositor do assistente compacto com configuração de IA no cabeçalho, e teste de notificação local ausente na conta real. As capturas e o relatório ficam nos artefatos locais de QA, sem dados de conta no Git.
+
+O serviço de sensores confirmou acesso ao acelerômetro, inscrição em Conexões e remoção ao trocar de tela. O movimento físico abrindo o painel Modo de teste ainda não foi confirmado. A tag `qa/android-1.0.1-build12` registra esta conferência, sem mudar a tag de aplicação `v1.0.1` e sem envio às lojas. Mudanças posteriores de WhatsQR na pasta de trabalho não fazem parte do binário conferido.
