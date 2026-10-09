@@ -9,6 +9,7 @@ import {WhatsQrConnections} from '../components/WhatsQrConnections';
 import {inspectQrConnection,qrConversation,qrNeedsRecovery,pairingLabel,type QrPairing} from '../api/whatsqr';
 import {publicationURL,openPublication} from '../api/publication';
 import {Media} from '../components/Media';
+import {canModerateConversation} from '../api/moderation';
 import {ChatMessage} from '../components/ChatMessage';
 import {visibleChatMessages} from '../components/chat-timeline';
 import {useSwipeBack} from '../hooks/useSwipeBack';
@@ -77,7 +78,7 @@ export function Chat(){
  {access.take&&s.mode==='reply'&&<Button quiet label={t("chat.takeReply")} testID="take-to-reply" disabled={s.offline} onPress={take}/>}
  {conversation.lifecycle==='resolved'&&s.mode==='reply'&&<Button quiet label={t("chat.reopenReply")} disabled={s.offline} onPress={()=>void s.transition('reopen')}/>}
  {qr&&qrState&&qrNeedsRecovery(qrState)&&s.mode==='reply'&&<Tap testID="chat-qr-recovery" label={t("qr.manageConnection")} onPress={()=>{Keyboard.dismiss();setQrRequest(value=>value+1)}} style={{paddingHorizontal:16,paddingVertical:8,backgroundColor:c.warnBg,flexDirection:'row',gap:8,justifyContent:'flex-start'}}><T size={11} color={c.warn} style={{flex:1,lineHeight:16}}>{pairingLabel(qrState)}</T><T size={11} bold color={c.blue} style={{lineHeight:16}}>{t("qr.manageConnection")}</T></Tap>}
- {comment&&(conversation.moderation?.spam||conversation.moderation?.blockedAuthor||conversation.moderation?.hidden)&&<View style={{paddingHorizontal:12,paddingVertical:6,backgroundColor:c.warnBg}}><T size={11} color={c.warn} style={{lineHeight:16}}>{conversation.moderation.blockedAuthor?t("chat.blocked"):conversation.moderation.spam?t("chat.spam"):(s.active?.mode==='mock'?t("chat.hiddenDemo"):t("chat.hiddenInstagram"))}</T></View>}
+ {(conversation.moderation?.spam||conversation.moderation?.blockedAuthor||conversation.moderation?.hidden)&&<View style={{paddingHorizontal:12,paddingVertical:6,backgroundColor:c.warnBg}}><T size={11} color={c.warn} style={{lineHeight:16}}>{conversation.moderation.blockedAuthor?t("chat.blocked"):conversation.moderation.spam?t("chat.spam"):(s.active?.mode==='mock'?t("chat.hiddenDemo"):t("chat.hiddenInstagram"))}</T></View>}
  <View ref={swipe.area} collapsable={false} onLayout={swipe.measure} {...swipe.panHandlers} testID="chat-swipe-back-area" style={{flex:1}}><FlatList ref={list} data={reversed} inverted renderItem={render} keyExtractor={item=>item.kind+':'+(item.display_id??item.id)} style={{flex:1}} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" contentContainerStyle={{paddingHorizontal:12,paddingVertical:8}} maintainVisibleContentPosition={{minIndexForVisible:0}} onViewableItemsChanged={viewability} viewabilityConfig={{itemVisiblePercentThreshold:40}} onScroll={e=>{const event=e.nativeEvent;atEnd.current=event.contentOffset.y<80;if(!restoring.current)s.setView({chatOffsets:{...s.view.chatOffsets,[s.conversationId]:event.contentOffset.y}})}} scrollEventThrottle={160} onContentSizeChange={()=>{if(restoring.current&&s.view.chatOffsets[s.conversationId]===undefined)list.current?.scrollToOffset({offset:0,animated:false})}} ListFooterComponent={s.cursor?<Tap label={t("chat.older")} onPress={()=>void s.older()} style={{alignItems:'center',minHeight:44}}><T size={12} color={c.blue}>{t("chat.older")}</T></Tap>:null} ListEmptyComponent={<T muted>{t("chat.loadingHistory")}</T>}/></View>
  {s.unseen>0&&!atEnd.current&&<Button label={t("chat.newMessages",{count:s.unseen})} onPress={()=>{list.current?.scrollToOffset({offset:0,animated:true});useApp.setState({unseen:0});atEnd.current=true}}/>}
  {s.toast&&<View pointerEvents="none" testID="chat-feedback" style={{paddingHorizontal:16,paddingVertical:6,backgroundColor:c.tint}}><T size={11} color={c.blue}>{s.toast}</T></View>}
@@ -117,7 +118,7 @@ export function Chat(){
  {actionRow(t("chat.snooze"),'clock',()=>setPanel('snooze'),{testID:'open-snooze'})}
  {actionRow(t("chat.agent"),'sparkles-outline',()=>setPanel('agent'),{testID:'open-agent'})}
  {actionRow(t("chat.updateContact"),'person-outline',()=>{setEmail('');setPanel('crm')})}
- {comment&&actionRow(t("chat.moderate"),'shield-checkmark-outline',()=>setPanel('moderation'),{testID:'open-moderation'})}
+ {canModerateConversation(conversation)&&actionRow(t("chat.moderate"),'shield-checkmark-outline',()=>setPanel('moderation'),{testID:'open-moderation'})}
  {comment&&conversation.comment?.relatedId&&actionRow(t("chat.openPrivate"),'chatbubbles-outline',()=>void s.openChat(conversation.comment!.relatedId!),{testID:'open-related'})}
  {s.active?.mode==='mock'&&actionRow(t("chat.simulate"),'refresh',()=>void s.inject())}
 

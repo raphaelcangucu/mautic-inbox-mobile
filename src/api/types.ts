@@ -19,7 +19,7 @@ export type Conversation = {
   can_reply: boolean; can_take?:boolean; can_take_and_reply?:boolean; reply_blocked_reason: string | null;
   reply_modes?:Partial<Record<'public'|'private',{available:boolean;can_reply:boolean;blocked_reason:string|null}>>;
   access_revoked?:boolean;kind?: 'inbox'|'comments'; comment?:CommentContext; snoozed_until?:string|null;
-  moderation?:{spam:boolean;hidden:boolean;blockedAuthor:boolean}; agent?:Agent|null;
+  moderation?:{spam:boolean;hidden:boolean;blockedAuthor:boolean}; moderation_available?:boolean; agent?:Agent|null;
   segments?:string[]; campaigns?:string[];
   // Explicit mobile/mock additions, not fields claimed to exist in InboxQuery.
   mobile: {avatarKey?: 'camila'|'ricardo'|'bia'|'lucas'; ai: boolean; window_open: boolean; attachments: boolean};

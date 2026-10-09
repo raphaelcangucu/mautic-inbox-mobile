@@ -1,9 +1,26 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {moderateSelection,mergeModeration} from '../src/api/moderation.ts';
+import {moderateSelection,mergeModeration,canModerateConversation} from '../src/api/moderation.ts';
 import type {Conversation,Transport} from '../src/api/types.ts';
 
 const comment=(id:number,recipient='author')=>({id,kind:'comments',channel:'instagram',asset:{id:4},recipient,version:1,moderation:{spam:false,hidden:false,blockedAuthor:false}} as Conversation);
+test('WebChat moderation requires server capability and never enables unsupported private social chats',()=>{
+ const webchat={...comment(10),kind:'inbox',channel:'webchat'} as Conversation;
+ assert.equal(canModerateConversation(webchat),false);
+ assert.equal(canModerateConversation({...webchat,moderation_available:true}),true);
+ assert.equal(canModerateConversation({...webchat,moderation_available:false}),false);
+ assert.equal(canModerateConversation({...comment(11),kind:'inbox',moderation_available:true}),false);
+ assert.equal(canModerateConversation(comment(12)),true);
+ assert.equal(canModerateConversation({...comment(12),moderation_available:false}),false);
+});
+test('WebChat blocking reaches only the same visitor and widget, preserving other channels',()=>{
+ const webchat=(id:number,asset=17,recipient='visitor')=>({...comment(id,recipient),kind:'inbox',channel:'webchat',asset:{id:asset},moderation_available:true} as Conversation);
+ const current=webchat(10);const same=webchat(11);const otherWidget=webchat(12,18);const otherVisitor=webchat(13,17,'another');const social=comment(14,'visitor');
+ const fresh={...current,moderation:{spam:false,hidden:false,blockedAuthor:true}};
+ const merged=mergeModeration([current,same,otherWidget,otherVisitor,social],fresh);
+ assert.equal(merged[0],fresh);assert.equal(merged[1].moderation?.blockedAuthor,true);
+ assert.equal(merged[2],otherWidget);assert.equal(merged[3],otherVisitor);assert.equal(merged[4],social);
+});
 function fake(rows:Conversation[]){
  const calls:any[]=[];const data=new Map(rows.map(c=>[c.id,c]));const authors=new Set<string>();
  const api={request:async(input:any)=>{calls.push(input);const id=Number(input.path.split('/')[4]);let row=data.get(id)!;if(input.method==='POST'){row={...row,moderation:{...row.moderation!,[input.body.action==='spam'?'spam':input.body.action==='hide'?'hidden':'blockedAuthor']:true}};data.set(id,row);if(input.body.action==='block')authors.add(row.recipient);}
