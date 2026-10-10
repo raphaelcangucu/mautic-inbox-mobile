@@ -32,6 +32,7 @@ function harness(accounts:Account[]=[],activeId:string|null=null){
  const exports:any={};
  const source=ts.transpileModule(fs.readFileSync(new URL('../src/store/app.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
  const modules:any={
+ '../voice/files':{clearAccountAudio:async()=>{},discardStagedAudio:async()=>{}},
  '../i18n/engine.ts':{t:(key:string)=>key},'zustand':{create},'react-native':{Platform:{OS:'web'}},
  '../api/delivery-diagnostics':{newDeliveryFailure},'../api/reply-mode':{initialReplyMode:()=> 'public'},'../api/push-accounts':{},'../api/notification-policy':{},'../api/native-push':{},
  '../api/http':{HttpTransport:FailedHttp},'@react-native-async-storage/async-storage':{getItem:async()=>metadata,setItem:async(_:string,value:string)=>{metadata=value}},

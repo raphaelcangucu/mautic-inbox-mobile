@@ -6,6 +6,8 @@ import {useTheme, font} from '../theme';
 import {T, Tap, Icon, Button, Card, Top} from '../components/ui';
 import {checkedAssistantProposals,assistantConfirmation,type AssistantProposal} from '../api/assistant-actions';
 import {Sheet} from '../components/Sheet';
+import {VoiceComposer,type VoiceHandle} from '../components/VoiceComposer';
+import {appendTranscript} from '../voice/transcript';
 import {assistantConsentKey,checkedAssistantDisclosure,assistantConsentMatches,askConsentedAssistant,type AssistantConsent,type AssistantDisclosure} from '../api/assistant-consent';
 
 import {checkedAssistantAgents,chooseAssistantAgent,assistantHistoryKey,type InternalAssistantAgent} from '../api/assistant-agents';
@@ -19,6 +21,7 @@ const prompts = [
 ] as const;
 
 export function Assistant() {
+  const voiceRef=useRef<VoiceHandle>(null);const [voiceBusy,setVoiceBusy]=useState(false);
   const c = useTheme();
   const s = useApp();
   const [actionReview,setActionReview]=useState<{turnId:string;proposal:AssistantProposal}|null>(null);
@@ -185,11 +188,13 @@ export function Assistant() {
     </ScrollView>
     {agentsReady&&agent&&<View style={{paddingVertical:10,paddingHorizontal:13,borderTopWidth:1,borderColor:c.line,backgroundColor:c.paper}}>
       <View style={{flexDirection:'row',gap:9,alignItems:'center'}}>
+        <Tap testID="assistant-voice" label={t('voice.title')} disabled={busy||voiceBusy} onPress={()=>{Keyboard.dismiss();voiceRef.current?.open()}} style={{width:44,height:44,borderRadius:14,backgroundColor:c.canvas,alignItems:'center'}}><Icon name="mic-outline" size={22} color={c.blue}/></Tap>
         <TextInput testID="assistant-composer" accessibilityLabel={t("assistant.askLabel")} value={input} onChangeText={setInput} placeholder={t("assistant.placeholder")} placeholderTextColor={c.faint} multiline style={{flex:1,color:c.ink,fontFamily:font.regular,fontSize:12,includeFontPadding:false,minHeight:44,maxHeight:100,padding:12,paddingVertical:10,backgroundColor:s.theme==='dark'?c.raised:c.canvas,borderRadius:15}}/>
-        <Tap testID="assistant-send" label={t("assistant.send")} disabled={busy||!agentsReady||!agent} onPress={() => void ask(input)} style={{width:44,height:44,borderRadius:14,backgroundColor:c.blue,alignItems:'center'}}><Icon name="send" size={20} color={c.paper}/></Tap>
+        <Tap testID="assistant-send" label={t("assistant.send")} disabled={busy||voiceBusy||!input.trim()||!agentsReady||!agent} onPress={() => void ask(input)} style={{width:44,height:44,borderRadius:14,backgroundColor:c.blue,alignItems:'center'}}><Icon name="send" size={20} color={c.paper}/></Tap>
       </View>
 
     </View>}
+    <VoiceComposer key={s.active?.id+':'+agent?.key} ref={voiceRef} onBusy={setVoiceBusy} onText={value=>{setInput(appendTranscript(input,value))}}/>
     <Sheet title={t('assistant.reviewAction')} visible={!!actionReview} onClose={()=>{if(!busy)setActionReview(null)}}>
       {actionReview&&<>
         <Card><T bold size={15}>{t(`assistant.action.${actionReview.proposal.tool}`)}</T><T size={13}>{actionReview.proposal.target.name} · #{actionReview.proposal.target.id}</T><T size={11} muted>{s.active?.name} · {actionReview.proposal.target.channel}</T></Card>
