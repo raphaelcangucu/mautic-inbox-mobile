@@ -23,7 +23,7 @@ test('audio authentication stays on the exact owned route and server capability 
  const api=new HttpTransport(account,session,async()=>{},()=>{});const id='a'.repeat(32);
  assert.equal((await api.mediaSource('/inbox/mobile/api/audio/'+id)).headers?.Authorization,'Bearer test-token');
  for(const uri of ['https://outside.example/inbox/mobile/api/audio/'+id,'/inbox/mobile/api/audio/'+id+'/other','/public/audio/'+id])assert.equal((await api.mediaSource(uri)).headers,undefined);
- assert.equal(conversationFromApi({id:1}).mobile.attachments,false);assert.equal(conversationFromApi({id:1,mobile:{attachments:true}}).mobile.attachments,true);
+ assert.equal(conversationFromApi({id:1}).mobile.attachments,false);assert.equal(conversationFromApi({id:1}).mobile.audio,false);const qr=conversationFromApi({id:1,mobile:{attachments:false,audio:true}});assert.equal(qr.mobile.attachments,false);assert.equal(qr.mobile.audio,true);
  assert.equal(messageFromApi({attachments:[{type:'audio',mime:'audio/mp4',url:'/inbox/mobile/api/audio/'+id}]}).attachment?.mime,'audio/mp4');
 });
 
