@@ -2,9 +2,11 @@ import {t} from '../i18n/engine.ts';
 import type {Conversation,Transport} from './types.ts';
 
 export const moderationAuthor=(c:Conversation)=>`${c.channel}:${c.asset.id}:${c.recipient}`;
+/** Older servers expose moderation only for comments. WebChat requires explicit support. */
+export const canModerateConversation=(c:Conversation)=>c.moderation_available!==false&&(c.kind==='comments'||c.channel==='webchat'&&c.moderation_available===true);
 export function mergeModeration(conversations:Conversation[],fresh:Conversation){
- if(fresh.kind!=='comments')return conversations;
- return conversations.map(p=>p.id===fresh.id?fresh:p.kind==='comments'&&fresh.moderation?.blockedAuthor&&moderationAuthor(p)===moderationAuthor(fresh)?{...p,moderation:{spam:!!p.moderation?.spam,hidden:!!p.moderation?.hidden,blockedAuthor:true}}:p);
+ if(!canModerateConversation(fresh))return conversations;
+ return conversations.map(p=>p.id===fresh.id?fresh:canModerateConversation(p)&&fresh.moderation?.blockedAuthor&&moderationAuthor(p)===moderationAuthor(fresh)?{...p,moderation:{spam:!!p.moderation?.spam,hidden:!!p.moderation?.hidden,blockedAuthor:true}}:p);
 }
 
 /** Uses the operator's normal API; hiding is confirmed by the server against Instagram. */

@@ -1,13 +1,16 @@
 import {AccessCache} from './access-cache.ts';
+import {canRetryMessage} from './message-retry.ts';
+import {t} from '../i18n/engine.ts';
 import type {Storage} from '../storage/interface.ts';
 import {ApiError, messageKey, defaultView, type Conversation, type Message, type Outbox, type Page, type Transport, type ViewState} from './types.ts';
 export class InboxRepository {
   private work=new Set<Promise<unknown>>();
+  private retries=new Map<string,Promise<'registered'|'already_registered'>>();
   readonly disk:Storage;readonly api:Transport;readonly access:AccessCache;
   constructor(disk:Storage,api:Transport,onRevoked?:(id:number)=>void){
     this.access=new AccessCache(disk,api,onRevoked);this.disk=this.access.disk;this.api=this.access.api;
     // Logout waits for complete repository operations, including their cache writes.
-    for(const key of ['list','more','detail','history','poll','transition','send','recover','refreshHistory'] as const){
+    for(const key of ['list','more','detail','history','poll','transition','send','retryMessage','recover','refreshHistory'] as const){
       const original=this[key].bind(this) as (...args:any[])=>Promise<any>;
       (this as any)[key]=(...args:any[])=>{const task=original(...args);this.work.add(task);void task.then(()=>this.work.delete(task),()=>this.work.delete(task));return task};
     }
@@ -49,6 +52,55 @@ export class InboxRepository {
   }
   async recover(){for(const entry of await this.disk.scan<Outbox>('outbox:'))if(entry.status==='sending'){await this.disk.put('outbox:'+entry.request_id,{...entry,status:'uncertain'});const messages=await this.cachedMessages(entry.conversationId);await this.saveMessages(entry.conversationId,messages.filter(m=>m.request_id===entry.request_id).map(m=>({...m,status:'uncertain'})))}}
   async reconcile(id:number,items:Message[]){for(const entry of await this.disk.scan<Outbox>('outbox:')){if(entry.conversationId!==id||entry.mode!=='reply')continue;const confirmed=items.find(m=>m.request_id===entry.request_id&&!String(m.id).startsWith('local-'));if(confirmed){await this.disk.remove('message:'+id+':outbound:local-'+entry.request_id);await this.disk.remove('outbox:'+entry.request_id)}}}
+  retryMessage(id:number,message:Message,newRequestId:string):Promise<'registered'|'already_registered'>{
+    const key=id+':'+messageKey(message);const existing=this.retries.get(key);if(existing)return existing;
+    const task=this.retryChecked(id,message,newRequestId);this.retries.set(key,task);
+    void task.then(()=>this.retries.delete(key),()=>this.retries.delete(key));return task;
+  }
+  private async retryChecked(id:number,message:Message,newRequestId:string):Promise<'registered'|'already_registered'>{
+    if(!canRetryMessage(message))throw new ApiError(409,'not_retryable',t('chat.retryUnavailable'));
+    const local=String(message.id).startsWith('local-');
+    const entry=local?await this.disk.get<Outbox>('outbox:'+message.request_id):null;
+    if(local&&(!entry||entry.conversationId!==id||entry.mode!=='reply'))throw new ApiError(409,'not_retryable',t('chat.retryUnavailable'));
+    const retryKey='retry:'+id+':'+messageKey(message);
+    const saved=await this.disk.get<{request_id:string;key:string}>(retryKey);
+    let remote:Message|undefined;let attempted:Message|undefined;let cursor:string|null=null;
+    const receipts:Message[]=[];
+    const seen=new Set<string>();
+    // Read fresh receipts first. A timeout is never permission to send another copy.
+    for(let page=0;page<100;page++){
+      const history=await this.history(id,cursor||undefined);
+      receipts.push(...history.items);
+      remote=history.items.find(item=>!String(item.id).startsWith('local-')&&(messageKey(item)===messageKey(message)||(!!message.request_id&&item.request_id===message.request_id)));
+      attempted=history.items.find(item=>saved&&item.request_id===saved.request_id)||attempted;
+      cursor=history.next_cursor;
+      if(remote||!cursor)break;
+      if(seen.has(cursor)||page===99)throw new ApiError(502,'history_incomplete',t('chat.retryHistoryIncomplete'));
+      seen.add(cursor);
+    }
+    if(attempted)return 'already_registered';
+    if(remote){
+      // Another device or the web Inbox may have retried this source already.
+      // Refresh the displayed receipt instead of issuing another send from a stale bubble.
+      if(receipts.some(item=>item.kind==='outbound'&&item.retry_of===remote!.request_id&&item.body===remote!.body))return 'already_registered';
+      if(remote.status!=='failed')return 'already_registered';
+      if(remote.retryable!==true)throw new ApiError(409,'not_retryable',t('chat.retryUnavailable'));
+      const remoteRetryKey='retry:'+id+':'+messageKey(remote);
+      const canonical=remoteRetryKey===retryKey?saved:await this.disk.get<{request_id:string;key:string}>(remoteRetryKey);
+      const requestId=canonical?.request_id||newRequestId;
+      // Persist before posting so a lost response or restart keeps the SAME retry ID.
+      await this.disk.put(remoteRetryKey,{request_id:requestId,key:messageKey(remote)});
+      const result=await this.api.request<{item:Message;summary?:Conversation}>({method:'POST',path:`/inbox/api/outbound/${remote.id}/retry`,body:{request_id:requestId}});
+      if(!result.item)throw new ApiError(502,'invalid_retry_response',t('chat.retryHistoryIncomplete'));
+      const otherDevice=result.item.request_id!==requestId;
+      if(otherDevice&&(result.item.kind!=='outbound'||result.item.retry_of!==remote.request_id||result.item.body!==remote.body))throw new ApiError(502,'invalid_retry_response',t('chat.retryHistoryIncomplete'));
+      await this.saveMessages(id,[result.item]);if(result.summary)await this.saveConversations([result.summary]);
+      if(result.item.status==='failed')throw new ApiError(422,'delivery_failed',result.item.failure||t('chat.retryUnavailable'));
+      return otherDevice?'already_registered':'registered';
+    }
+    if(!local)throw new ApiError(409,'not_retryable',t('chat.retryUnavailable'));
+    await this.send({...entry!,status:'sending'});return 'registered';
+  }
   async isRevoked(id:number){return this.access.isRevoked(id)}
   async drafts(id:number,mode:'reply'|'note'){return await this.disk.get<string>('draft:'+id+':'+mode)||''}
 }

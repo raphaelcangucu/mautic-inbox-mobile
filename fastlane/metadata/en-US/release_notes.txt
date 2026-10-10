@@ -1,1 +1,1 @@
-Internal assistant with permissions per user, daily campaign reports, Instagram and WhatsApp flow queries, and reviewed actions for replies, campaign updates, contact association and attendance transfer.
+Retry failed messages directly from the conversation. Each retry updates the same bubble, with clearer delivery errors and shareable diagnostics. Fresh receipts and stable identifiers prevent duplicate sends.

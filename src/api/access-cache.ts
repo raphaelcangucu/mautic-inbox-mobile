@@ -15,7 +15,7 @@ export class AccessCache {
   this.ready=raw.scan<Revocation>('access:revoked:').then(async items=>{for(const {id} of items){if(!this.revoked.has(id))this.revoked.set(id,0);await this.purge(id)}});
   const serial=<T>(job:()=>Promise<T>)=>{const pending=this.writes.then(job,job);this.writes=pending.catch(()=>{});return pending;};
   const conversationKey=(key:string,value?:any)=>{
-   const match=/^(?:conversation|message|draft|cursor):(\d+)(?::|$)/.exec(key);
+   const match=/^(?:conversation|message|draft|cursor|retry):(\d+)(?::|$)/.exec(key);
    return match?Number(match[1]):key.startsWith('outbox:')?Number(value?.conversationId)||0:0;
   };
   this.disk={
@@ -67,6 +67,7 @@ export class AccessCache {
    for(const message of await this.raw.scan<any>('message:'+id+':'))await this.raw.remove('message:'+id+':'+message.kind+':'+message.id);
    await this.raw.remove('draft:'+id+':reply');await this.raw.remove('draft:'+id+':note');await this.raw.remove('cursor:'+id);
    for(const entry of await this.raw.scan<any>('outbox:'))if(entry.conversationId===id)await this.raw.remove('outbox:'+entry.request_id);
+   for(const entry of await this.raw.scan<{key:string}>('retry:'+id+':'))await this.raw.remove('retry:'+id+':'+entry.key);
    const ids=await this.raw.get<number[]>('sync:list-ids');if(ids)await this.raw.put('sync:list-ids',ids.filter(value=>value!==id));
    const view=await this.raw.get<any>('ui:view');if(view){if(view.lastChat===id)delete view.lastChat;if(view.chatOffsets)delete view.chatOffsets[id];if(view.chatAnchors)delete view.chatAnchors[id];await this.raw.put('ui:view',view)}
  }

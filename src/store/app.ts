@@ -1,4 +1,6 @@
 import {t} from '../i18n/engine.ts';
+import {clearAccountAudio,discardStagedAudio} from '../voice/files';
+import {newDeliveryFailure} from '../api/delivery-diagnostics';
 import {initialReplyMode} from '../api/reply-mode';
 import {syncPushAccounts} from '../api/push-accounts';
 import {create} from 'zustand';
@@ -47,7 +49,7 @@ type State={
   boot:()=>Promise<void>;switchAccount:(a:Account)=>Promise<void>;connect:(config:MobileConfig,result:LoginResult,name:string)=>Promise<void>;logout:(remove?:boolean,localOnly?:boolean)=>Promise<void>;
   navigate:(r:Route)=>void;back:()=>void;sync:(force?:boolean,showRefresh?:boolean)=>Promise<void>;moreConversations:()=>Promise<void>;openChat:(id:number)=>Promise<void>;older:()=>Promise<void>;read:()=>Promise<void>;
   setView:(patch:Partial<ViewState>)=>void;setDraft:(text:string)=>void;setMode:(mode:'reply'|'note')=>Promise<void>;send:(template?:Template,variables?:Record<string,string>)=>Promise<boolean>;
-  transition:(action:string,payload?:Record<string,unknown>)=>Promise<boolean>;feature:(endpoint:string,payload:Record<string,unknown>)=>Promise<boolean>;themeToggle:()=>void;toggleOffline:()=>void;toggleSlow:()=>void;inject:()=>Promise<void>;toggleWindow:()=>Promise<void>;setPreferences:(patch:Partial<Preferences>)=>void;notify:(message:string)=>void;
+  retryMessage:(message:Message)=>Promise<boolean>;transition:(action:string,payload?:Record<string,unknown>)=>Promise<boolean>;feature:(endpoint:string,payload:Record<string,unknown>)=>Promise<boolean>;themeToggle:()=>void;toggleOffline:()=>void;toggleSlow:()=>void;inject:()=>Promise<void>;toggleWindow:()=>Promise<void>;setPreferences:(patch:Partial<Preferences>)=>void;notify:(message:string)=>void;
 };
 export const useApp=create<State>((set,get)=>({
   demoUnlocked:false,connections:initialConnections,connectionDraft:null,ready:false,accounts:[],active:null,repo:null,transport:null,route:'inbox',theme:'light',view:defaultView(),conversations:[],messages:{},conversationId:0,draft:'',mode:'reply',attachment:null,cursor:null,replyMode:'public',syncing:false,refreshingList:false,offline:false,slow:false,error:'',toast:'',lastSync:0,listComplete:true,preferences:prefs,pushStatus:null,pushBusy:false,unseen:0,performance:[],
@@ -70,9 +72,9 @@ export const useApp=create<State>((set,get)=>({
   connect:async(config,result,name)=>{const id=await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256,config.origin+'|'+result.user.id);const a:Account={id,origin:config.origin,name:name||config.name,user:result.user,config,mode:'live'};await saveSession(id,result.session);set({accounts:[...get().accounts.filter(x=>x.id!==id),a]});await get().switchAccount(a);await persistMeta()},
   unlockDemo:async()=>{const accounts=demoAccounts.map(a=>({...a,mode:'mock' as const}));for(const a of accounts)await saveSession(accountStorageId(a),{accessToken:'mock-'+a.id,expiresAt:Date.now()+604800000});set({demoUnlocked:true,accounts:[...get().accounts.filter(a=>a.mode!=='mock'),...accounts]});await persistMeta()},
   hideDemo:async()=>{const s=get();if(s.active?.mode==='mock'){chatNavigation.invalidate();await flushDraft();++generation;set({active:null,repo:null,transport:null,conversations:[],messages:{},conversationId:0,draft:'',attachment:null,view:defaultView(),route:'accounts',syncing:false,refreshingList:false,error:'',toast:'',offline:false,slow:false,unseen:0,lastSync:0,listComplete:true,pushStatus:null,pushBusy:false})}set({demoUnlocked:false});await persistMeta()},
-  logout:async(remove=false,localOnly=false)=>{const s=get();if(!s.active||loggingOut.has(s.active.id))return;const id=s.active.id;loggingOut.add(id);try{chatNavigation.invalidate();await flushDraft();++generation;if(s.transport instanceof MockTransport)s.transport.offline=true;else if(s.repo&&!localOnly){if(Platform.OS==='ios')await removeNativePush(s.repo.api).catch(()=>{});await s.repo.api.request({method:'DELETE',path:'/inbox/mobile/session'}).catch(()=>{});}await s.transport?.settle();await s.repo?.settle();await s.repo?.disk.clear();await s.repo?.disk.close();const storageId=accountStorageId(s.active);await deleteAccountDisk(storageId);runtimes.delete(storageId);await deleteSession(storageId);set({repo:null,transport:null,active:null,pushStatus:null,pushBusy:false,conversations:[],messages:{},conversationId:0,draft:'',attachment:null,view:defaultView(),route:'accounts',accounts:remove?s.accounts.filter(a=>a.id!==id):s.accounts.map(a=>a.id===id?{...a,expired:true}:a)});await persistMeta()}finally{loggingOut.delete(id)}},
+  logout:async(remove=false,localOnly=false)=>{const s=get();if(!s.active||loggingOut.has(s.active.id))return;const id=s.active.id;loggingOut.add(id);try{chatNavigation.invalidate();await flushDraft();++generation;if(s.transport instanceof MockTransport)s.transport.offline=true;else if(s.repo&&!localOnly){if(Platform.OS==='ios')await removeNativePush(s.repo.api).catch(()=>{});await s.repo.api.request({method:'DELETE',path:'/inbox/mobile/session'}).catch(()=>{});}await s.transport?.settle();await s.repo?.settle();await s.repo?.disk.clear();await s.repo?.disk.close();const storageId=accountStorageId(s.active);await deleteAccountDisk(storageId);await clearAccountAudio(storageId);runtimes.delete(storageId);await deleteSession(storageId);set({repo:null,transport:null,active:null,pushStatus:null,pushBusy:false,conversations:[],messages:{},conversationId:0,draft:'',attachment:null,view:defaultView(),route:'accounts',accounts:remove?s.accounts.filter(a=>a.id!==id):s.accounts.map(a=>a.id===id?{...a,expired:true}:a)});await persistMeta()}finally{loggingOut.delete(id)}},
   navigate:r=>{if(r==='diagnostics'&&get().active?.mode!=='mock')return;chatNavigation.invalidate();void flushDraft();set({route:r,error:''})},back:()=>{chatNavigation.invalidate();void flushDraft();set({route:get().route==='contact'?'chat':'inbox',error:''})},
-  sync:async(force=true,showRefresh=false)=>{const s=get();if(!s.repo||s.syncing||s.offline)return;const epoch=generation;set({syncing:true,refreshingList:showRefresh,error:''});try{if(force||s.active?.mode!=='live'||Date.now()-s.lastSync>=30000){const conversations=await s.repo.list();const listComplete=await s.repo.disk.get<boolean>('sync:list-complete');if(epoch!==generation)return;set({conversations,lastSync:Date.now(),listComplete:listComplete!==false})}if(s.route==='chat'&&get().route==='chat'&&get().conversationId===s.conversationId){if(s.active?.mode==='live'){const fresh=await s.repo.detail(s.conversationId);if(epoch!==generation)return;set({conversations:get().conversations.map(c=>c.id===fresh.id?fresh:c)})}const messages=s.active?.mode==='live'?await s.repo.refreshHistory(s.conversationId):(await s.repo.poll(s.conversationId),await s.repo.cachedMessages(s.conversationId));if(epoch===generation&&!await s.repo.isRevoked(s.conversationId))set({messages:{...get().messages,[s.conversationId]:messages}})}
+  sync:async(force=true,showRefresh=false)=>{const s=get();if(!s.repo||s.syncing||s.offline)return;const epoch=generation;set({syncing:true,refreshingList:showRefresh,error:''});try{if(force||s.active?.mode!=='live'||Date.now()-s.lastSync>=30000){const conversations=await s.repo.list();const listComplete=await s.repo.disk.get<boolean>('sync:list-complete');if(epoch!==generation)return;set({conversations,lastSync:Date.now(),listComplete:listComplete!==false})}if(s.route==='chat'&&get().route==='chat'&&get().conversationId===s.conversationId){if(s.active?.mode==='live'){const fresh=await s.repo.detail(s.conversationId);if(epoch!==generation)return;set({conversations:get().conversations.map(c=>c.id===fresh.id?fresh:c)})}const messages=s.active?.mode==='live'?await s.repo.refreshHistory(s.conversationId):(await s.repo.poll(s.conversationId),await s.repo.cachedMessages(s.conversationId));if(epoch===generation&&!await s.repo.isRevoked(s.conversationId)){const failed=newDeliveryFailure(get().messages[s.conversationId]||[],messages);set({messages:{...get().messages,[s.conversationId]:messages}});if(failed&&get().route==='chat'&&get().conversationId===s.conversationId)get().notify(failed.failure||t('chat.retryUnavailable'))}}
       if(s.active?.mode==='live'&&Platform.OS!=='web'){
         const saved=await s.repo.disk.get<number>('notification:cursor');
         const batch=await s.repo.api.request<any>({method:'GET',path:'/inbox/mobile/notifications',query:saved===null?{}:{cursor:saved}});
@@ -112,6 +114,7 @@ export const useApp=create<State>((set,get)=>({
     try{
       const current=chatNavigation.guard(()=>epoch===generation&&get().repo===s.repo&&get().route==='chat'&&get().conversationId===s.conversationId);
       await flushDraft();if(!current())return false;
+      if(s.attachment?.mime==='audio/mp4'&&s.draft.trim()){s.notify(t('voice.audioWithDraft'));return false}
       let body=s.draft.trim();if(template)body=template.preview.replace(/\{\{(\w+)\}\}/g,(_,token)=>variables?.['BODY:'+token]||'');
       if(!body&&!s.attachment)return false;
       const id=Crypto.randomUUID().replace(/-/g,'');
@@ -121,7 +124,7 @@ export const useApp=create<State>((set,get)=>({
       set({draft:'',attachment:null,messages:{...get().messages,[s.conversationId]:[...(get().messages[s.conversationId]||[]),local]}});
       const clearing=s.repo.disk.put('draft:'+s.conversationId+':'+s.mode,'').catch(()=>{});
       let accepted=false;
-      try{await s.repo.send(entry);accepted=true;if(epoch===generation)get().notify(s.mode==='note'?t("store.noteSaved"):s.active?.mode==='mock'?t("store.demoAccepted"):t("store.accepted"))}
+      try{const result=await s.repo.send(entry);accepted=result.item?.status!=='failed';if(accepted&&s.active&&result.item?.attachment?.uri&&!result.item.attachment.uri.startsWith('file://'))await discardStagedAudio(accountStorageId(s.active),s.attachment?.uri);if(epoch===generation)get().notify(!accepted?(result.item?.failure||t("chat.retryUnavailable")):s.mode==='note'?t("store.noteSaved"):s.active?.mode==='mock'?t("store.demoAccepted"):t("store.accepted"))}
       catch(e){if(epoch===generation)get().notify(e instanceof Error?e.message:String(e))}
       finally{
         await clearing;
@@ -130,6 +133,21 @@ export const useApp=create<State>((set,get)=>({
       }
       return accepted;
     }finally{sendingChats.delete(key)}
+  },
+  retryMessage:async message=>{
+    const s=get(),epoch=generation;if(!s.repo||s.offline){s.notify(t('store.offlineDraft'));return false}
+    const key=s.active?.id+':'+s.conversationId+':reply';if(sendingChats.has(key))return false;
+    sendingChats.add(key);
+    const current=()=>epoch===generation&&get().repo===s.repo&&get().route==='chat'&&get().conversationId===s.conversationId;
+    try{
+      const result=await s.repo.retryMessage(s.conversationId,message,Crypto.randomUUID().replace(/-/g,''));
+      if(current())s.notify(result==='registered'?t('chat.retryRegistered'):t('chat.retryAlreadyRegistered'));
+      return true;
+    }catch(e){if(current())s.notify(e instanceof Error?e.message:String(e));return false}
+    finally{
+      try{const [items,conversations]=await Promise.all([s.repo.cachedMessages(s.conversationId),s.repo.cachedList()]);if(epoch===generation&&!await s.repo.isRevoked(s.conversationId))set({messages:{...get().messages,[s.conversationId]:items},conversations})}
+      finally{sendingChats.delete(key)}
+    }
   },
   transition:async(action,payload={})=>{const s=get();const c=s.conversations.find(c=>c.id===s.conversationId);if(!s.repo||!c||s.offline){get().notify(t("store.connectChange"));return false}const epoch=generation;try{const fresh=await s.repo.transition(c.id,c.version,action,payload);if(epoch===generation)set({conversations:get().conversations.map(c=>c.id===fresh.id?fresh:c)});if(epoch!==generation)return false;get().notify(action==='take'?t("store.taken"):t("store.updated"));return true}catch(e){if(epoch===generation){get().notify(e instanceof Error?e.message:String(e));await get().sync()}return false}},
   feature:async(endpoint,payload)=>{const s=get();const c=s.conversations.find(x=>x.id===s.conversationId);if(!s.repo||!c||s.offline){s.notify(t("store.connectChange"));return false}const epoch=generation;try{const updated=await s.repo.api.request<Conversation>({method:'POST',path:`/inbox/${endpoint==='moderation'?'mobile':'api'}/conversations/${c.id}/${endpoint}`,body:{...payload,version:c.version}});await s.repo.saveConversations([updated]);if(epoch!==generation)return false;set({conversations:get().conversations.map(x=>x.id===updated.id?updated:x)});await get().sync();get().notify(s.active?.mode==='mock'?t("store.demoSaved"):t("store.saved"));return true}catch(e){if(epoch===generation){get().notify(e instanceof Error?e.message:String(e));await get().sync()}return false}},
