@@ -3,6 +3,7 @@
     "CFBundleDisplayName": "Mautic Inbox",
     "NSPhotoLibraryUsageDescription": "Selecciona una imagen para adjuntarla a la conversación.",
     "NSCameraUsageDescription": "Usa la cámara para tomar una foto para la conversación.",
-    "NSMicrophoneUsageDescription": "Usa el micrófono para grabar un mensaje de audio."
+    "NSMicrophoneUsageDescription": "Usa el micrófono para grabar un mensaje de audio.",
+    "NSSpeechRecognitionUsageDescription": "Convierte tu voz o audio grabado en texto para revisar antes de enviar."
   }
 }
