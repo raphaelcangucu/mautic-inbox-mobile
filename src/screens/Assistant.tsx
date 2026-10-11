@@ -1,10 +1,10 @@
 import {t,type TranslationKey} from '../i18n/engine';
 import React, {useEffect, useState, useRef} from 'react';
-import {View, ScrollView, TextInput, Keyboard, Linking} from 'react-native';
+import {View, ScrollView, TextInput, Keyboard, Linking, AppState} from 'react-native';
 import {useApp} from '../store/app';
 import {useTheme, font} from '../theme';
 import {T, Tap, Icon, Button, Card, Top} from '../components/ui';
-import {checkedAssistantProposals,assistantConfirmation,type AssistantProposal} from '../api/assistant-actions';
+import {checkedAssistantProposals,assistantConfirmation,assistantSupportedActions,type AssistantProposal} from '../api/assistant-actions';
 import {Sheet} from '../components/Sheet';
 import {VoiceComposer,type VoiceHandle} from '../components/VoiceComposer';
 import {appendTranscript} from '../voice/transcript';
@@ -12,7 +12,9 @@ import {assistantConsentKey,checkedAssistantDisclosure,assistantConsentMatches,a
 
 import {checkedAssistantAgents,chooseAssistantAgent,assistantHistoryKey,type InternalAssistantAgent} from '../api/assistant-agents';
 
-type Turn = {id:string; role:'user'|'assistant'; text:string; tool?:string; conversationId?:number;proposals?:AssistantProposal[];completedActions?:Record<string,string>};
+import {checkedCommentClassifications,checkedCommentPage,advanceCommentSweep,startCommentSweep,wantsCommentSweep,commentSweepKey,type CommentPage,type CommentSweep,type CommentClassification} from '../api/assistant-sweep';
+type Turn = {question?:string;comment_classifications?:CommentClassification[];comment_page?:CommentPage|null;id:string; role:'user'|'assistant'; text:string; tool?:string; conversationId?:number;proposals?:AssistantProposal[];completedActions?:Record<string,string>};
+const isCommentBatch=(turn:Turn)=>!!turn.comment_classifications?.length&&!!turn.proposals?.length&&turn.proposals.every(p=>turn.comment_classifications!.some(row=>row.id===p.target.id)&&(p.tool==='inbox_moderate'||(p.tool==='mautic_reply_inbox'&&p.fields.mode==='public'&&['instagram','facebook'].includes(p.target.channel))));
 const prompts = [
   ['megaphone-outline', "assistant.promptCampaigns"],
   ['person-outline', "assistant.promptWaiting"],
@@ -26,6 +28,9 @@ export function Assistant() {
   const s = useApp();
   const [actionReview,setActionReview]=useState<{turnId:string;proposal:AssistantProposal}|null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
+  const [sweep,setSweep]=useState<CommentSweep|null>(null);const sweepRef=useRef<CommentSweep|null>(null);const keepScanning=useRef(false);const [batchReview,setBatchReview]=useState<string|null>(null);const [classificationReview,setClassificationReview]=useState<string|null>(null);const [visibleTurns,setVisibleTurns]=useState(10);
+  const pauseScan=()=>{keepScanning.current=false;};
+  useEffect(()=>{const sub=AppState.addEventListener('change',state=>{if(state!=='active')pauseScan()});return ()=>{pauseScan();sub.remove()}},[]);
   const [input, setInput] = useState('');
   const [agents,setAgents]=useState<InternalAssistantAgent[]>([]);
   const [agent,setAgent]=useState<InternalAssistantAgent|null>(null);
@@ -36,6 +41,8 @@ export function Assistant() {
   const [busy, setBusy] = useState(false);
   const [sharingOpen,setSharingOpen]=useState(false);
   const [disclosure,setDisclosure]=useState<AssistantDisclosure|null>(null);
+  const pendingSweep=useRef(false);
+  const pendingPage=useRef<CommentPage|undefined>(undefined);
   const [pendingQuestion,setPendingQuestion]=useState<string|null>(null);
   const [consent,setConsent]=useState<AssistantConsent|null>(null);
   const scroll = useRef<ScrollView>(null);
@@ -43,7 +50,7 @@ export function Assistant() {
   const requestGeneration = useRef(0);
   useEffect(() => {
     let current = true; ++requestGeneration.current;
-    setActionReview(null);setTurns([]);setInput('');setBusy(false);setSharingOpen(false);setDisclosure(null);setPendingQuestion(null);setConsent(null);follow.current = true;
+    keepScanning.current=false;sweepRef.current=null;setSweep(null);setBatchReview(null);setClassificationReview(null);setActionReview(null);setTurns([]);setInput('');setBusy(false);setSharingOpen(false);setDisclosure(null);setPendingQuestion(null);setConsent(null);follow.current = true;
     setAgents([]);setAgent(null);setAgentsReady(false);setAgentPicker(false);setAgentError(false);
     const repo=s.repo;const mock=s.active?.mode==='mock';
     if(repo)void (async()=>{
@@ -53,6 +60,8 @@ export function Assistant() {
         const items=checkedAssistantAgents(raw);const selected=chooseAssistantAgent(items,saved);
         const stored=selected?await repo.disk.get<Turn[]>(assistantHistoryKey(selected.key)):null;
         if(!current)return;
+        const savedSweep=selected?await repo.disk.get<CommentSweep>(commentSweepKey(selected.key)):null;if(!current)return;
+        if(savedSweep){const restored={...savedSweep,status:savedSweep.status==='complete'?'complete' as const:'paused' as const};sweepRef.current=restored;setSweep(restored)}
         setAgents(items);setAgent(selected);setTurns(stored||[]);setAgentsReady(true);
       }catch(e){if(current){setAgentError(true);s.notify(e instanceof Error?e.message:String(e))}}
     })();
@@ -61,13 +70,13 @@ export function Assistant() {
 
   async function selectAgent(selected:InternalAssistantAgent){
     const repo=s.repo;const accountId=s.active?.id;if(!repo||busy)return;
-    const generation=++requestGeneration.current;setActionReview(null);setBusy(true);setAgent(selected);setTurns([]);setInput('');setAgentPicker(false);setPendingQuestion(null);setSharingOpen(false);follow.current=true;
-    try{await repo.disk.put('assistant:selected-agent',selected.key);const stored=await repo.disk.get<Turn[]>(assistantHistoryKey(selected.key));if(requestGeneration.current===generation&&useApp.getState().active?.id===accountId)setTurns(stored||[])}
+    keepScanning.current=false;setSweep(null);sweepRef.current=null;setBatchReview(null);setClassificationReview(null);const generation=++requestGeneration.current;setActionReview(null);setBusy(true);setAgent(selected);setTurns([]);setInput('');setAgentPicker(false);setPendingQuestion(null);setSharingOpen(false);follow.current=true;
+    try{await repo.disk.put('assistant:selected-agent',selected.key);const stored=await repo.disk.get<Turn[]>(assistantHistoryKey(selected.key));const savedSweep=await repo.disk.get<CommentSweep>(commentSweepKey(selected.key));if(requestGeneration.current===generation&&useApp.getState().active?.id===accountId){setTurns(stored||[]);if(savedSweep){const restored={...savedSweep,status:savedSweep.status==='complete'?'complete' as const:'paused' as const};sweepRef.current=restored;setSweep(restored)}}}
     catch(e){if(requestGeneration.current===generation&&useApp.getState().active?.id===accountId)s.notify(e instanceof Error?e.message:String(e))}
     finally{if(requestGeneration.current===generation&&useApp.getState().active?.id===accountId)setBusy(false)}
   }
 
-  async function ask(question:string|null) {
+  async function ask(question:string|null,page?:CommentPage,scanAll=false,resume=false) {
     if (busy || (question!==null&&(!agentsReady||!agent||!question.trim()))) return;
     if (s.offline) {s.notify(t("assistant.offline"));return}
     const accountId = s.active?.id;
@@ -76,7 +85,10 @@ export function Assistant() {
     const generation = ++requestGeneration.current;
     const current = () => requestGeneration.current === generation && useApp.getState().active?.id === accountId;
     follow.current = true;Keyboard.dismiss();
-    setBusy(true);if(question!==null)setInput(question);
+    keepScanning.current=question!==null&&(scanAll||wantsCommentSweep(question));
+    pendingSweep.current=keepScanning.current;
+    if(keepScanning.current){const state=resume&&sweepRef.current?{...sweepRef.current,status:'running' as const}:startCommentSweep(question!,page||null);sweepRef.current=state;setSweep(state)}
+    pendingPage.current=page;setBusy(true);if(question!==null)setInput(question);
     try {
       if(s.active?.mode==='mock'){if(question!==null)await submit(question,generation);return}
       // This metadata request carries no question, conversation, CRM data or history.
@@ -94,28 +106,69 @@ export function Assistant() {
     const current=()=>requestGeneration.current===generation&&useApp.getState().active?.id===account.id;
     if(!current())return;
     setInput('');
-    const next = [...turns, {id:String(Date.now()),role:'user' as const,text:question}];
-    setTurns(next);
+    let history=turns;const scanning=pendingSweep.current;
     try {
-      const body={message:question,agent_key:agent!.key,conversation_id:s.conversationId,history:turns.slice(-6)};
-      const response = account.mode==='mock'?await repo.api.request<Omit<Turn,'id'>>({method:'POST',path:'/inbox/mobile/assistant/messages',body}):await askConsentedAssistant<Omit<Turn,'id'>>(repo.api,info!,saved||null,account.id,account.origin,body);
-      if (!current()) return;
-      const proposals=checkedAssistantProposals(response.proposals,agent!.key);
-      const complete = [...next, {...response,proposals,id:String(Date.now()+1),conversationId:s.conversationId||undefined}];
-      setTurns(complete);
-      await repo?.disk.put(assistantHistoryKey(agent!.key),complete);
-    } catch (e) {if(current()){setInput(question);setTurns(turns);s.notify(e instanceof Error ? e.message : String(e))}}
+      do {
+        const next=[...history,{id:String(Date.now()),role:'user' as const,text:question}];setTurns(next);
+        const page=pendingPage.current;
+        const body={comment_page:page,supported_actions:assistantSupportedActions,message:question,agent_key:agent!.key,history:history.slice(-6).map(turn=>({role:turn.role,text:turn.text.slice(0,2000)})),conversation_id:s.conversationId};
+        const response=account.mode==='mock'?await repo.api.request<Omit<Turn,'id'>>({method:'POST',path:'/inbox/mobile/assistant/messages',body}):await askConsentedAssistant<Omit<Turn,'id'>>(repo.api,info!,saved||null,account.id,account.origin,body);
+        if(!current())return;
+        const rows=checkedCommentClassifications(response.comment_classifications);const nextPage=checkedCommentPage(response.comment_page);
+        if(scanning&&!response.tool?.split(' · ').includes('inbox_comments'))throw Error(t('assistant.scanUnavailable'));
+        const previous=new Set(scanning?sweepRef.current?.seen||[]:[]);
+        const proposals=checkedAssistantProposals(response.proposals,agent!.key).filter(p=>!scanning||!previous.has(p.target.id));
+        history=[...next,{...response,question,comment_classifications:rows,comment_page:nextPage,proposals,id:String(Date.now()+1),conversationId:s.conversationId||undefined}];
+        setTurns(history);await repo.disk.put(assistantHistoryKey(agent!.key),history);
+        if(scanning&&sweepRef.current){
+          let progress=advanceCommentSweep(sweepRef.current,rows,nextPage);
+          if(progress.status==='running'&&(!keepScanning.current||AppState.currentState!=='active'))progress={...progress,status:'paused'};
+          sweepRef.current=progress;setSweep(progress);await repo.disk.put(commentSweepKey(agent!.key),progress);
+        }
+        pendingPage.current=nextPage||undefined;
+        if(!nextPage)keepScanning.current=false;
+      }while(keepScanning.current&&current());
+    } catch(e){if(current()){keepScanning.current=false;if(scanning&&sweepRef.current){const paused={...sweepRef.current,status:'paused' as const};sweepRef.current=paused;setSweep(paused);await repo.disk.put(commentSweepKey(agent!.key),paused)}setInput(question);setTurns(history);s.notify(e instanceof Error?e.message:String(e))}}
   }
+  async function renewProposal(proposal:AssistantProposal):Promise<AssistantProposal>{
+    const response=await s.repo!.api.request({method:'POST',path:'/inbox/mobile/assistant/actions/renew',body:{proposal_id:proposal.id,agent_key:agent!.key}});
+    return checkedAssistantProposals([response],agent!.key)[0];
+  }
+  async function applyBatch(){
+    const account=s.active,repo=s.repo,selected=agent;if(!batchReview||!account||!repo||!selected||busy||s.offline)return;
+    const turn=turns.find(item=>item.id===batchReview);if(!turn||!isCommentBatch(turn))return;
+    const generation=++requestGeneration.current;const current=()=>requestGeneration.current===generation&&useApp.getState().active?.id===account.id;
+    setBusy(true);let history=turns;
+    try{
+      for(const proposal of turn.proposals||[]){
+        if(turn.completedActions?.[proposal.id])continue;
+        if(!current())return;
+        if(Date.parse(proposal.expires_at)<=Date.now())await renewProposal(proposal);
+        if(!current())return;
+        // The same ID is replay-safe if the app loses the response or is interrupted.
+        const result=await repo.api.request<{status:string}>({method:'POST',path:'/inbox/mobile/assistant/actions/confirm',body:{proposal_id:proposal.id,agent_key:selected.key,confirm:true}});
+        if(!current())return;
+        history=history.map(item=>item.id===turn.id?{...item,completedActions:{...item.completedActions,[proposal.id]:result.status}}:item);
+        setTurns(history);await repo.disk.put(assistantHistoryKey(selected.key),history);
+        if(result.status==='failed')throw Error(t('assistant.batchStopped'));
+      }
+      setBatchReview(null);void s.sync();
+    }catch(e){if(current())s.notify(e instanceof Error?e.message:String(e))}
+    finally{if(current())setBusy(false)}
+  }
+
   async function confirmAction(){
     const review=actionReview,account=s.active,repo=s.repo;if(!review||!account||!repo||!agent||busy||s.offline)return;
     const generation=++requestGeneration.current;const current=()=>requestGeneration.current===generation&&useApp.getState().active?.id===account.id;
     setBusy(true);
     try{
-      const response=await repo.api.request<{status:string}>({method:'POST',path:'/inbox/mobile/assistant/actions/confirm',body:assistantConfirmation(review.proposal,agent.key)});
+      const proposal=Date.parse(review.proposal.expires_at)<=Date.now()?await renewProposal(review.proposal):review.proposal;
+      if(!current())return;
+      const response=await repo.api.request<{status:string}>({method:'POST',path:'/inbox/mobile/assistant/actions/confirm',body:assistantConfirmation(proposal,agent.key)});
       if(!current())return;
       const status=String(response.status||'registered');
       const complete=turns.map(turn=>turn.id===review.turnId?{...turn,completedActions:{...turn.completedActions,[review.proposal.id]:status}}:turn);
-      setTurns(complete);setActionReview(null);await repo.disk.put(assistantHistoryKey(agent.key),complete);s.notify(t('assistant.actionRegistered',{status}));
+      setTurns(complete);setActionReview(null);await repo.disk.put(assistantHistoryKey(agent.key),complete);s.notify(t('assistant.actionRegistered',{status:t(('assistant.status.'+status) as TranslationKey)}));if(review.proposal.tool==='inbox_moderate')void s.sync();
     }catch(e){if(current())s.notify(e instanceof Error?e.message:String(e))}
     finally{if(current())setBusy(false)}
   }
@@ -157,7 +210,7 @@ export function Assistant() {
         {s.active?.mode==='live'&&<Tap label={t("assistant.sharing")} testID="assistant-sharing-settings" disabled={busy||s.offline} onPress={()=>void ask(null)} style={{width:40,height:40,minHeight:40,alignItems:'center'}}><Icon name="shield-checkmark-outline" size={20} color={c.soft}/></Tap>}
       </View>
       <View style={{flexDirection:'row',gap:5,alignItems:'center',alignSelf:'flex-start',backgroundColor:c.okBg,borderRadius:7,paddingVertical:5,paddingHorizontal:8}}>
-        <Icon name="lock-closed-outline" size={12} color={c.ok}/><T size={9} bold color={c.ok}>{t("assistant.permissions")}</T>
+        <Icon name="lock-closed-outline" size={12} color={c.ok}/><T size={9} bold color={c.ok}>{t(agent?.confirmation_required?'assistant.permissionsActions':'assistant.permissions')}</T>
       </View>
       {agents.length>1&&<Tap label={t('assistant.chooseAgent')} testID="assistant-agent-picker" disabled={busy} onPress={()=>setAgentPicker(true)} style={{flexDirection:'row',alignItems:'center',gap:7,minHeight:40,marginTop:8}}><Icon name="swap-horizontal-outline" size={17} color={c.blue}/><T size={12} color={c.blue}>{t('assistant.chooseAgent')}</T></Tap>}
       {s.active?.mode==='live'&&(!agentsReady||!agent)&&<View testID={agentsReady?'assistant-no-access':'assistant-loading'} style={{paddingVertical:22}}>
@@ -167,6 +220,8 @@ export function Assistant() {
           {agentsReady&&<T size={12} muted style={{marginTop:8}}>{t('assistant.requestAccess')}</T>}
           {agentError&&<Button quiet label={t('assistant.reloadAgents')} onPress={()=>setAgentReload(value=>value+1)}/>}</Card>
       </View>}
+      {agentsReady&&agent?.tools.includes('inbox_comments')&&<Card style={{marginTop:12}}><T size={13} bold>{t('assistant.sweepTitle')}</T><T size={11} muted>{t('assistant.sweepHint')}</T>{sweep&&<T testID="assistant-sweep-progress" size={12} style={{marginTop:8}}>{t('assistant.sweepProgress',{total:sweep.seen.length,spam:sweep.spam,legitimate:sweep.legitimate,uncertain:sweep.uncertain})} · {t(('assistant.sweep.'+sweep.status) as TranslationKey)}</T>}{busy&&keepScanning.current?<Button quiet label={t('assistant.pauseSweep')} onPress={pauseScan}/>:<><Button quiet testID="assistant-scan-comments" label={t(sweep?.status==='paused'?'assistant.resumeSweep':'assistant.scanComments')} disabled={busy||s.offline} onPress={()=>void ask(sweep?.status==='paused'?sweep.question:t('assistant.scanQuestion'),sweep?.status==='paused'?sweep.next||undefined:undefined,true,sweep?.status==='paused')}/></>}</Card>}
+      {turns.length>visibleTurns&&<Button quiet label={t('assistant.earlierBatches')} onPress={()=>setVisibleTurns(n=>n+10)}/>}
       {agentsReady&&agent&&(turns.length === 0 ? <>
         <View style={{width:49,height:49,borderRadius:17,backgroundColor:c.tint,alignItems:'center',justifyContent:'center',marginTop:22,marginBottom:15}}><Icon name="sparkles-outline" size={26} color={c.blue}/></View>
         <T size={27} bold style={{lineHeight:35,letterSpacing:-.8,marginTop:8,marginBottom:2}}>{t('assistant.greeting',{name:s.active?.user.name||''})}</T>
@@ -176,11 +231,15 @@ export function Assistant() {
           <T size={12} bold style={{flex:1}}>{t(q)}</T><Icon name="chevron-forward" size={13} color={c.faint}/>
         </Tap>)}</View>
         <View style={{flexDirection:'row',gap:9,marginVertical:20}}><Icon name="shield-checkmark-outline" size={20} color={c.soft}/><T size={10} muted style={{flex:1}}>{s.active?.mode==='mock'?t("assistant.demoResults"):t(agent.confirmation_required?"assistant.reviewActions":"assistant.readOnly")}</T></View>
-      </> : <View style={{gap:13,paddingTop:16}}>{turns.map(turn => <View key={turn.id} style={{alignSelf:turn.role==='user'?'flex-end':'stretch',maxWidth:turn.role==='user'?'90%':'100%'}}>
+      </> : <View style={{gap:13,paddingTop:16}}>{turns.slice(-visibleTurns).map(turn => <View key={turn.id} style={{alignSelf:turn.role==='user'?'flex-end':'stretch',maxWidth:turn.role==='user'?'90%':'100%'}}>
         <Card style={{backgroundColor:turn.role==='user'?c.tint:c.paper}}>
           <T size={13}>{turn.text}</T>
           {turn.tool?.includes('inbox_context') && turn.conversationId && <Button quiet label={t("assistant.useDraft")} onPress={() => {const id=turn.conversationId!;const repo=s.repo;void s.openChat(id).then(() => {const state=useApp.getState();if(state.repo===repo&&state.route==='chat'&&state.conversationId===id)state.setDraft(turn.text)})}}/>}
-          {(turn.proposals||[]).map(proposal=><View key={proposal.id} style={{marginTop:12,borderTopWidth:1,borderColor:c.line,paddingTop:10}}><T size={12} bold>{t(`assistant.action.${proposal.tool}`)}</T><T size={12} muted>{proposal.target.name} · #{proposal.target.id}</T>{proposal.fields.body&&<T size={12} style={{marginTop:6}} numberOfLines={3}>{proposal.fields.body}</T>}{turn.completedActions?.[proposal.id]?<View><T size={11} color={turn.completedActions[proposal.id]==='failed'?c.warn:c.soft} style={{marginTop:8}}>{t('assistant.actionRegistered',{status:t(('assistant.status.'+turn.completedActions[proposal.id]) as TranslationKey)})}</T>{proposal.tool==='mautic_reply_inbox'&&<Button quiet label={t('assistant.refreshStatus')} disabled={busy||s.offline} onPress={()=>void refreshAction(turn.id,proposal)}/>}</View>:<Button quiet testID={`assistant-review-${proposal.id}`} label={t('assistant.reviewAction')} disabled={busy||s.offline} onPress={()=>setActionReview({turnId:turn.id,proposal})}/>}</View>)}
+          {(turn.proposals||[]).map(proposal=><View key={proposal.id} style={{marginTop:12,borderTopWidth:1,borderColor:c.line,paddingTop:10}}><T size={12} bold>{t(proposal.tool==='inbox_moderate'?`assistant.moderation.${proposal.fields.operation!}`:`assistant.action.${proposal.tool}`)}</T><T size={12} muted>{proposal.target.name} · #{proposal.target.id}</T>{proposal.fields.body&&<T size={12} style={{marginTop:6}} numberOfLines={3}>{proposal.fields.body}</T>}{turn.completedActions?.[proposal.id]?<View><T size={11} color={turn.completedActions[proposal.id]==='failed'?c.warn:c.soft} style={{marginTop:8}}>{t('assistant.actionRegistered',{status:t(('assistant.status.'+turn.completedActions[proposal.id]) as TranslationKey)})}</T>{proposal.tool==='mautic_reply_inbox'&&<Button quiet label={t('assistant.refreshStatus')} disabled={busy||s.offline} onPress={()=>void refreshAction(turn.id,proposal)}/>}</View>:<Button quiet testID={`assistant-review-${proposal.id}`} label={t('assistant.reviewAction')} disabled={busy||s.offline} onPress={()=>setActionReview({turnId:turn.id,proposal})}/>}</View>)}
+          {!!turn.comment_classifications?.length&&<T size={11} muted style={{marginTop:8}}>{t('assistant.classifiedBatch',{total:turn.comment_classifications.length,spam:turn.comment_classifications.filter(row=>row.classification==='spam').length})}</T>}
+          {!!turn.comment_classifications?.length&&<Button quiet label={t('assistant.classificationDetails')} disabled={busy} onPress={()=>setClassificationReview(turn.id)}/>}
+          {isCommentBatch(turn)&&!!turn.proposals?.length&&turn.proposals.some(p=>!turn.completedActions?.[p.id])&&<Button quiet label={t('assistant.reviewBatch')} disabled={busy||s.offline} onPress={()=>setBatchReview(turn.id)}/>}
+          {turn.role==='assistant'&&turn.comment_page&&<Button quiet testID={`assistant-next-comments-${turn.id}`} label={t('assistant.nextComments')} disabled={busy||s.offline} onPress={()=>void ask(turn.question||t('assistant.nextCommentsRequest'),turn.comment_page!)}/>}
           {turn.role==='assistant' && turn.tool?.includes('contact') && <Button quiet label={t("assistant.viewContacts")} onPress={() => s.navigate('contacts')}/>}
         </Card>
       </View>)}</View>)}
@@ -195,13 +254,23 @@ export function Assistant() {
 
     </View>}
     <VoiceComposer key={s.active?.id+':'+agent?.key} ref={voiceRef} onBusy={setVoiceBusy} onText={value=>{setInput(appendTranscript(input,value))}}/>
+    <Sheet title={t('assistant.classificationDetails')} visible={!!classificationReview} onClose={()=>setClassificationReview(null)}>
+      {(turns.find(turn=>turn.id===classificationReview)?.comment_classifications||[]).map(row=><Card key={row.id}><T size={12} bold>{row.name} · #{row.id}</T><T size={11} muted>{row.account} · {t(('assistant.classification.'+row.classification) as TranslationKey)}</T><T size={12}>{row.body}</T><T size={11} muted>{row.reason}</T></Card>)}
+    </Sheet>
+    <Sheet title={t('assistant.reviewBatch')} visible={!!batchReview} onClose={()=>{if(!busy)setBatchReview(null)}}>
+      <T size={12}>{t('assistant.batchWarning')}</T>
+      {(turns.find(turn=>turn.id===batchReview)?.proposals||[]).filter(p=>!turns.find(turn=>turn.id===batchReview)?.completedActions?.[p.id]).map(p=><Card key={p.id}><T size={12} bold>{p.target.name} · #{p.target.id}</T><T size={11} muted>{p.fields.account||p.target.channel} · {t(p.tool==='inbox_moderate'?`assistant.moderation.${p.fields.operation!}`:`assistant.action.${p.tool}`)}</T><T size={12}>{p.fields.body}</T>{p.fields.reason&&<T size={11} muted>{p.fields.reason}</T>}</Card>)}
+      <Button testID="assistant-confirm-batch" label={t('assistant.confirmBatch')} disabled={busy||s.offline} onPress={()=>void applyBatch()}/>
+      <Button quiet label={t('common.cancel')} disabled={busy} onPress={()=>setBatchReview(null)}/>
+    </Sheet>
     <Sheet title={t('assistant.reviewAction')} visible={!!actionReview} onClose={()=>{if(!busy)setActionReview(null)}}>
       {actionReview&&<>
-        <Card><T bold size={15}>{t(`assistant.action.${actionReview.proposal.tool}`)}</T><T size={13}>{actionReview.proposal.target.name} · #{actionReview.proposal.target.id}</T><T size={11} muted>{s.active?.name} · {actionReview.proposal.target.channel}</T></Card>
+        <Card><T bold size={15}>{t(actionReview.proposal.tool==='inbox_moderate'?`assistant.moderation.${actionReview.proposal.fields.operation!}`:`assistant.action.${actionReview.proposal.tool}`)}</T><T size={13}>{actionReview.proposal.target.name} · #{actionReview.proposal.target.id}</T><T size={11} muted>{s.active?.name} · {actionReview.proposal.target.channel}</T></Card>
+        {actionReview.proposal.tool==='inbox_moderate'&&<><T size={12} bold>{actionReview.proposal.fields.account}</T><T size={12} muted>{t(actionReview.proposal.fields.scope==='instagram'?'assistant.moderation.instagramScope':'actions.moderationHint')}</T><T size={12}>{actionReview.proposal.fields.reason}</T></>}
         {actionReview.proposal.fields.mode&&<T bold size={12}>{t(actionReview.proposal.fields.mode==='public'?'assistant.publicReply':'assistant.privateReply')}</T>}
         {actionReview.proposal.fields.take_attendance&&<T size={12}>{t('assistant.takeAndReply')}</T>}
         {actionReview.proposal.fields.body&&<Card><T size={14}>{actionReview.proposal.fields.body}</T></Card>}
-        {Object.entries(actionReview.proposal.fields).filter(([key])=>!['body','mode','take_attendance','may_trigger_campaign'].includes(key)).map(([key,value])=><View key={key} style={{marginVertical:6}}><T size={12} bold>{t(({name:'assistant.field.name',description:'assistant.field.description',allowRestart:'assistant.field.allowRestart',contacts:'assistant.field.contacts',user_name:'assistant.field.user_name',user_id:'assistant.field.user_id'} as Record<string,TranslationKey>)[key]||'assistant.reviewAction')}</T>{actionReview.proposal.before&&key in actionReview.proposal.before&&<T size={12} muted>{t('assistant.before',{value:String(actionReview.proposal.before[key]??'—')})}</T>}<T size={13}>{Array.isArray(value)?value.map(item=>`${item.name||'#'+item.id} (#${item.id})`).join(', '):typeof value==='boolean'?t(value?'assistant.yes':'assistant.no'):String(value)}</T></View>)}
+        {Object.entries(actionReview.proposal.fields).filter(([key])=>!['body','mode','take_attendance','may_trigger_campaign','operation','reason','account','scope'].includes(key)).map(([key,value])=><View key={key} style={{marginVertical:6}}><T size={12} bold>{t(({name:'assistant.field.name',description:'assistant.field.description',allowRestart:'assistant.field.allowRestart',contacts:'assistant.field.contacts',user_name:'assistant.field.user_name',user_id:'assistant.field.user_id'} as Record<string,TranslationKey>)[key]||'assistant.reviewAction')}</T>{actionReview.proposal.before&&key in actionReview.proposal.before&&<T size={12} muted>{t('assistant.before',{value:String(actionReview.proposal.before[key]??'—')})}</T>}<T size={13}>{Array.isArray(value)?value.map(item=>`${item.name||'#'+item.id} (#${item.id})`).join(', '):typeof value==='boolean'?t(value?'assistant.yes':'assistant.no'):String(value)}</T></View>)}
         {actionReview.proposal.fields.may_trigger_campaign&&<T size={12}>{t('assistant.campaignMayTrigger')}</T>}
         <T size={11} muted>{t('assistant.actionWarning')}</T>
         <Button testID="assistant-confirm-action" label={t('assistant.confirmAction')} disabled={busy||s.offline} onPress={()=>void confirmAction()}/>
