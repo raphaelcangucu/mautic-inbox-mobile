@@ -11,10 +11,10 @@ export type CannedResponse = {id:number;name:string;body:string};
 export type CommentContext = {postTitle:string;postBody:string;commentBody?:string;image?:string|null;permalink:string;relatedId?:number;canPrivate:boolean;canPublic?:boolean};
 export type Conversation = {
   id: number; conversation_id: number; version: number; channel: Channel; contact_name: string; preview: string;
-  avatar_url: string | null; asset_avatar_url?:string|null; asset: {id: number; name: string;type?:string;phone?:string|null;handle?:string|null}; recipient: string;
+  avatar_url: string | null; contact_handle?:string|null; profile_url?:string|null; asset_avatar_url?:string|null; asset: {id: number; name: string;type?:string;phone?:string|null;handle?:string|null}; recipient: string;
   assignee: {id: number; name: string} | null; lifecycle: 'open'|'snoozed'|'resolved'; needs_response: boolean;
   unread: number; human_takeover: boolean; last_message_at: string; updated_at: string;
-  contact: {id: number; name: string; email: string; phone: string} | null;
+  contact: {id: number; name: string; email: string; phone: string; social_profiles?:import('./social-profiles').SocialProfiles} | null;
   origins: {campaign: string; page?: string; utm_source?: string; utm_campaign?: string};
   can_reply: boolean; can_take?:boolean; can_take_and_reply?:boolean; reply_blocked_reason: string | null;
   reply_modes?:Partial<Record<'public'|'private',{available:boolean;can_reply:boolean;blocked_reason:string|null}>>;

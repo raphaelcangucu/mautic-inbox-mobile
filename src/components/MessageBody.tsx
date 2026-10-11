@@ -4,12 +4,15 @@ import {useTheme,font} from '../theme';
 import {useApp} from '../store/app';
 import {messageDocument,type MessageNode} from './message-format';
 import {T} from './ui';
+import {t} from '../i18n/engine';
+import {channels,type Channel} from '../api/types';
 
-export const MessageBody=React.memo(function MessageBody({body,whatsapp=false,onEmail}:{body:string;whatsapp?:boolean;onEmail?:(email:string)=>void}){
- const c=useTheme();const nodes=useMemo(()=>messageDocument(body),[body]);
+export const MessageBody=React.memo(function MessageBody({body,channel,whatsapp=false,onEmail}:{body:string;channel?:Channel;whatsapp?:boolean;onEmail?:(email:string)=>void}){
+ const c=useTheme();const nodes=useMemo(()=>messageDocument(body,channel),[body,channel]);
  const codeFont=Platform.OS==='ios'?'Menlo':'monospace';
  function inline(node:MessageNode,key:number):React.ReactNode {
   if(node.type==='text'||node.type==='image')return node.text;
+  if(node.type==='mention')return <Text key={key} testID={'message-mention-'+node.text?.slice(1)} accessibilityRole="link" accessibilityLabel={t('contact.openProfile',{channel:channel?channels[channel]:''})+' '+node.text} onPress={()=>{if(node.href)void Linking.openURL(node.href).catch(()=>useApp.getState().notify(t('contact.profileOpenError')))}} style={{color:c.blue,fontFamily:font.bold,textDecorationLine:'underline'}}>{node.text}</Text>;
   if(node.type==='softbreak'||node.type==='hardbreak')return '\n';
   const children=node.children.map(inline);
   if(node.type==='link')return <Text key={key} accessibilityRole={node.href?'link':undefined} onPress={node.href?()=>{if(node.href!.startsWith('mailto:')&&onEmail){onEmail(node.href!.slice(7));return}void Linking.openURL(node.href!).catch(()=>useApp.getState().notify(node.href!))}:undefined} style={node.href?{color:c.blue,textDecorationLine:'underline'}:undefined}>{children}</Text>;
