@@ -55,6 +55,7 @@ google-services.json
 /scripts/*
 !/scripts/build-apk.sh
 !/scripts/build-ios.sh
+!/scripts/prepare-ios-release-headers.py
 !/scripts/android-release.py
 !/scripts/android-preflight.py
 !/scripts/android-device-package.py
