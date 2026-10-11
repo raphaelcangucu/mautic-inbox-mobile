@@ -4,7 +4,7 @@ import {View, ScrollView, TextInput, Keyboard, Linking} from 'react-native';
 import {useApp} from '../store/app';
 import {useTheme, font} from '../theme';
 import {T, Tap, Icon, Button, Card, Top} from '../components/ui';
-import {checkedAssistantProposals,assistantConfirmation,type AssistantProposal} from '../api/assistant-actions';
+import {checkedAssistantProposals,assistantConfirmation,assistantSupportedActions,type AssistantProposal} from '../api/assistant-actions';
 import {Sheet} from '../components/Sheet';
 import {VoiceComposer,type VoiceHandle} from '../components/VoiceComposer';
 import {appendTranscript} from '../voice/transcript';
@@ -12,7 +12,8 @@ import {assistantConsentKey,checkedAssistantDisclosure,assistantConsentMatches,a
 
 import {checkedAssistantAgents,chooseAssistantAgent,assistantHistoryKey,type InternalAssistantAgent} from '../api/assistant-agents';
 
-type Turn = {id:string; role:'user'|'assistant'; text:string; tool?:string; conversationId?:number;proposals?:AssistantProposal[];completedActions?:Record<string,string>};
+type CommentPage={cursor:string;filters:Record<string,unknown>};
+type Turn = {comment_page?:CommentPage|null;id:string; role:'user'|'assistant'; text:string; tool?:string; conversationId?:number;proposals?:AssistantProposal[];completedActions?:Record<string,string>};
 const prompts = [
   ['megaphone-outline', "assistant.promptCampaigns"],
   ['person-outline', "assistant.promptWaiting"],
@@ -36,6 +37,7 @@ export function Assistant() {
   const [busy, setBusy] = useState(false);
   const [sharingOpen,setSharingOpen]=useState(false);
   const [disclosure,setDisclosure]=useState<AssistantDisclosure|null>(null);
+  const pendingPage=useRef<CommentPage|undefined>(undefined);
   const [pendingQuestion,setPendingQuestion]=useState<string|null>(null);
   const [consent,setConsent]=useState<AssistantConsent|null>(null);
   const scroll = useRef<ScrollView>(null);
@@ -67,7 +69,7 @@ export function Assistant() {
     finally{if(requestGeneration.current===generation&&useApp.getState().active?.id===accountId)setBusy(false)}
   }
 
-  async function ask(question:string|null) {
+  async function ask(question:string|null,page?:CommentPage) {
     if (busy || (question!==null&&(!agentsReady||!agent||!question.trim()))) return;
     if (s.offline) {s.notify(t("assistant.offline"));return}
     const accountId = s.active?.id;
@@ -76,7 +78,7 @@ export function Assistant() {
     const generation = ++requestGeneration.current;
     const current = () => requestGeneration.current === generation && useApp.getState().active?.id === accountId;
     follow.current = true;Keyboard.dismiss();
-    setBusy(true);if(question!==null)setInput(question);
+    pendingPage.current=page;setBusy(true);if(question!==null)setInput(question);
     try {
       if(s.active?.mode==='mock'){if(question!==null)await submit(question,generation);return}
       // This metadata request carries no question, conversation, CRM data or history.
@@ -97,7 +99,7 @@ export function Assistant() {
     const next = [...turns, {id:String(Date.now()),role:'user' as const,text:question}];
     setTurns(next);
     try {
-      const body={message:question,agent_key:agent!.key,conversation_id:s.conversationId,history:turns.slice(-6)};
+      const body={comment_page:pendingPage.current,supported_actions:assistantSupportedActions,message:question,agent_key:agent!.key,conversation_id:s.conversationId,history:turns.slice(-6)};
       const response = account.mode==='mock'?await repo.api.request<Omit<Turn,'id'>>({method:'POST',path:'/inbox/mobile/assistant/messages',body}):await askConsentedAssistant<Omit<Turn,'id'>>(repo.api,info!,saved||null,account.id,account.origin,body);
       if (!current()) return;
       const proposals=checkedAssistantProposals(response.proposals,agent!.key);
@@ -115,7 +117,7 @@ export function Assistant() {
       if(!current())return;
       const status=String(response.status||'registered');
       const complete=turns.map(turn=>turn.id===review.turnId?{...turn,completedActions:{...turn.completedActions,[review.proposal.id]:status}}:turn);
-      setTurns(complete);setActionReview(null);await repo.disk.put(assistantHistoryKey(agent.key),complete);s.notify(t('assistant.actionRegistered',{status}));
+      setTurns(complete);setActionReview(null);await repo.disk.put(assistantHistoryKey(agent.key),complete);s.notify(t('assistant.actionRegistered',{status:t(('assistant.status.'+status) as TranslationKey)}));if(review.proposal.tool==='inbox_moderate')void s.sync();
     }catch(e){if(current())s.notify(e instanceof Error?e.message:String(e))}
     finally{if(current())setBusy(false)}
   }
@@ -157,7 +159,7 @@ export function Assistant() {
         {s.active?.mode==='live'&&<Tap label={t("assistant.sharing")} testID="assistant-sharing-settings" disabled={busy||s.offline} onPress={()=>void ask(null)} style={{width:40,height:40,minHeight:40,alignItems:'center'}}><Icon name="shield-checkmark-outline" size={20} color={c.soft}/></Tap>}
       </View>
       <View style={{flexDirection:'row',gap:5,alignItems:'center',alignSelf:'flex-start',backgroundColor:c.okBg,borderRadius:7,paddingVertical:5,paddingHorizontal:8}}>
-        <Icon name="lock-closed-outline" size={12} color={c.ok}/><T size={9} bold color={c.ok}>{t("assistant.permissions")}</T>
+        <Icon name="lock-closed-outline" size={12} color={c.ok}/><T size={9} bold color={c.ok}>{t(agent?.confirmation_required?'assistant.permissionsActions':'assistant.permissions')}</T>
       </View>
       {agents.length>1&&<Tap label={t('assistant.chooseAgent')} testID="assistant-agent-picker" disabled={busy} onPress={()=>setAgentPicker(true)} style={{flexDirection:'row',alignItems:'center',gap:7,minHeight:40,marginTop:8}}><Icon name="swap-horizontal-outline" size={17} color={c.blue}/><T size={12} color={c.blue}>{t('assistant.chooseAgent')}</T></Tap>}
       {s.active?.mode==='live'&&(!agentsReady||!agent)&&<View testID={agentsReady?'assistant-no-access':'assistant-loading'} style={{paddingVertical:22}}>
@@ -180,7 +182,8 @@ export function Assistant() {
         <Card style={{backgroundColor:turn.role==='user'?c.tint:c.paper}}>
           <T size={13}>{turn.text}</T>
           {turn.tool?.includes('inbox_context') && turn.conversationId && <Button quiet label={t("assistant.useDraft")} onPress={() => {const id=turn.conversationId!;const repo=s.repo;void s.openChat(id).then(() => {const state=useApp.getState();if(state.repo===repo&&state.route==='chat'&&state.conversationId===id)state.setDraft(turn.text)})}}/>}
-          {(turn.proposals||[]).map(proposal=><View key={proposal.id} style={{marginTop:12,borderTopWidth:1,borderColor:c.line,paddingTop:10}}><T size={12} bold>{t(`assistant.action.${proposal.tool}`)}</T><T size={12} muted>{proposal.target.name} · #{proposal.target.id}</T>{proposal.fields.body&&<T size={12} style={{marginTop:6}} numberOfLines={3}>{proposal.fields.body}</T>}{turn.completedActions?.[proposal.id]?<View><T size={11} color={turn.completedActions[proposal.id]==='failed'?c.warn:c.soft} style={{marginTop:8}}>{t('assistant.actionRegistered',{status:t(('assistant.status.'+turn.completedActions[proposal.id]) as TranslationKey)})}</T>{proposal.tool==='mautic_reply_inbox'&&<Button quiet label={t('assistant.refreshStatus')} disabled={busy||s.offline} onPress={()=>void refreshAction(turn.id,proposal)}/>}</View>:<Button quiet testID={`assistant-review-${proposal.id}`} label={t('assistant.reviewAction')} disabled={busy||s.offline} onPress={()=>setActionReview({turnId:turn.id,proposal})}/>}</View>)}
+          {(turn.proposals||[]).map(proposal=><View key={proposal.id} style={{marginTop:12,borderTopWidth:1,borderColor:c.line,paddingTop:10}}><T size={12} bold>{t(proposal.tool==='inbox_moderate'?`assistant.moderation.${proposal.fields.operation!}`:`assistant.action.${proposal.tool}`)}</T><T size={12} muted>{proposal.target.name} · #{proposal.target.id}</T>{proposal.fields.body&&<T size={12} style={{marginTop:6}} numberOfLines={3}>{proposal.fields.body}</T>}{turn.completedActions?.[proposal.id]?<View><T size={11} color={turn.completedActions[proposal.id]==='failed'?c.warn:c.soft} style={{marginTop:8}}>{t('assistant.actionRegistered',{status:t(('assistant.status.'+turn.completedActions[proposal.id]) as TranslationKey)})}</T>{proposal.tool==='mautic_reply_inbox'&&<Button quiet label={t('assistant.refreshStatus')} disabled={busy||s.offline} onPress={()=>void refreshAction(turn.id,proposal)}/>}</View>:<Button quiet testID={`assistant-review-${proposal.id}`} label={t('assistant.reviewAction')} disabled={busy||s.offline} onPress={()=>setActionReview({turnId:turn.id,proposal})}/>}</View>)}
+          {turn.role==='assistant'&&turn.comment_page&&<Button quiet testID={`assistant-next-comments-${turn.id}`} label={t('assistant.nextComments')} disabled={busy||s.offline} onPress={()=>void ask(t('assistant.nextCommentsRequest'),turn.comment_page!)}/>}
           {turn.role==='assistant' && turn.tool?.includes('contact') && <Button quiet label={t("assistant.viewContacts")} onPress={() => s.navigate('contacts')}/>}
         </Card>
       </View>)}</View>)}
@@ -197,11 +200,12 @@ export function Assistant() {
     <VoiceComposer key={s.active?.id+':'+agent?.key} ref={voiceRef} onBusy={setVoiceBusy} onText={value=>{setInput(appendTranscript(input,value))}}/>
     <Sheet title={t('assistant.reviewAction')} visible={!!actionReview} onClose={()=>{if(!busy)setActionReview(null)}}>
       {actionReview&&<>
-        <Card><T bold size={15}>{t(`assistant.action.${actionReview.proposal.tool}`)}</T><T size={13}>{actionReview.proposal.target.name} · #{actionReview.proposal.target.id}</T><T size={11} muted>{s.active?.name} · {actionReview.proposal.target.channel}</T></Card>
+        <Card><T bold size={15}>{t(actionReview.proposal.tool==='inbox_moderate'?`assistant.moderation.${actionReview.proposal.fields.operation!}`:`assistant.action.${actionReview.proposal.tool}`)}</T><T size={13}>{actionReview.proposal.target.name} · #{actionReview.proposal.target.id}</T><T size={11} muted>{s.active?.name} · {actionReview.proposal.target.channel}</T></Card>
+        {actionReview.proposal.tool==='inbox_moderate'&&<><T size={12} bold>{actionReview.proposal.fields.account}</T><T size={12} muted>{t(actionReview.proposal.fields.scope==='instagram'?'assistant.moderation.instagramScope':'actions.moderationHint')}</T><T size={12}>{actionReview.proposal.fields.reason}</T></>}
         {actionReview.proposal.fields.mode&&<T bold size={12}>{t(actionReview.proposal.fields.mode==='public'?'assistant.publicReply':'assistant.privateReply')}</T>}
         {actionReview.proposal.fields.take_attendance&&<T size={12}>{t('assistant.takeAndReply')}</T>}
         {actionReview.proposal.fields.body&&<Card><T size={14}>{actionReview.proposal.fields.body}</T></Card>}
-        {Object.entries(actionReview.proposal.fields).filter(([key])=>!['body','mode','take_attendance','may_trigger_campaign'].includes(key)).map(([key,value])=><View key={key} style={{marginVertical:6}}><T size={12} bold>{t(({name:'assistant.field.name',description:'assistant.field.description',allowRestart:'assistant.field.allowRestart',contacts:'assistant.field.contacts',user_name:'assistant.field.user_name',user_id:'assistant.field.user_id'} as Record<string,TranslationKey>)[key]||'assistant.reviewAction')}</T>{actionReview.proposal.before&&key in actionReview.proposal.before&&<T size={12} muted>{t('assistant.before',{value:String(actionReview.proposal.before[key]??'—')})}</T>}<T size={13}>{Array.isArray(value)?value.map(item=>`${item.name||'#'+item.id} (#${item.id})`).join(', '):typeof value==='boolean'?t(value?'assistant.yes':'assistant.no'):String(value)}</T></View>)}
+        {Object.entries(actionReview.proposal.fields).filter(([key])=>!['body','mode','take_attendance','may_trigger_campaign','operation','reason','account','scope'].includes(key)).map(([key,value])=><View key={key} style={{marginVertical:6}}><T size={12} bold>{t(({name:'assistant.field.name',description:'assistant.field.description',allowRestart:'assistant.field.allowRestart',contacts:'assistant.field.contacts',user_name:'assistant.field.user_name',user_id:'assistant.field.user_id'} as Record<string,TranslationKey>)[key]||'assistant.reviewAction')}</T>{actionReview.proposal.before&&key in actionReview.proposal.before&&<T size={12} muted>{t('assistant.before',{value:String(actionReview.proposal.before[key]??'—')})}</T>}<T size={13}>{Array.isArray(value)?value.map(item=>`${item.name||'#'+item.id} (#${item.id})`).join(', '):typeof value==='boolean'?t(value?'assistant.yes':'assistant.no'):String(value)}</T></View>)}
         {actionReview.proposal.fields.may_trigger_campaign&&<T size={12}>{t('assistant.campaignMayTrigger')}</T>}
         <T size={11} muted>{t('assistant.actionWarning')}</T>
         <Button testID="assistant-confirm-action" label={t('assistant.confirmAction')} disabled={busy||s.offline} onPress={()=>void confirmAction()}/>

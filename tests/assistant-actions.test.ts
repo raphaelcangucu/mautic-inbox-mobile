@@ -14,3 +14,17 @@ test('confirmation only carries an opaque proposal ID, agent and explicit confir
  assert.throws(()=>assistantConfirmation(p,'other',Date.parse('2026-10-07T22:00:00Z')));
  assert.throws(()=>assistantConfirmation(p,'admin',Date.parse('2026-10-07T23:00:00Z')));
 });
+const moderation={...proposal,tool:'inbox_moderate',target:{id:8,name:'Author',channel:'instagram'},fields:{operation:'spam',reason:'Third-party ad',body:'Visit my shop',account:'Macro',scope:'inbox'}};
+test('moderation proposals show exact comment, account, reason and truthful scope',()=>{
+ assert.equal(checkedAssistantProposals([moderation],'admin').length,1);
+ for(const fields of [{...moderation.fields,operation:'delete'},{...moderation.fields,scope:'instagram'},{...moderation.fields,reason:''},{...moderation.fields,account:undefined}])assert.throws(()=>checkedAssistantProposals([{...moderation,fields}],'admin'));
+ assert.throws(()=>checkedAssistantProposals([{...moderation,target:{...moderation.target,channel:'whatsapp'}}],'admin'));
+ assert.throws(()=>checkedAssistantProposals([{...moderation,fields:{...moderation.fields,operation:'hide',scope:'instagram'},target:{...moderation.target,channel:'facebook'}}],'admin'));
+});
+test('moderation can review 20 unique comments while replies retain their original cap',()=>{
+ const batch=Array.from({length:20},(_,i)=>({...moderation,id:(i+1).toString(16).padStart(48,'0'),target:{...moderation.target,id:i+1}}));
+ assert.equal(checkedAssistantProposals(batch,'admin').length,20);
+ assert.throws(()=>checkedAssistantProposals([...batch,{...moderation,id:'b'.repeat(48)}],'admin'));
+ assert.throws(()=>checkedAssistantProposals([batch[0],{...batch[1],target:batch[0].target}],'admin'));
+ assert.throws(()=>checkedAssistantProposals(Array.from({length:4},(_,i)=>({...proposal,id:(i+1).toString(16).padStart(48,'0')})),'admin'));
+});
