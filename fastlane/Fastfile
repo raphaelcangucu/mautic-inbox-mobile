@@ -276,7 +276,7 @@ platform :ios do
       # Always install the captured release dependency graph before prebuild.
       sh("npm", "ci", "--include=dev", "--no-audit", "--no-fund")
       ENV["MAUTIC_APNS_ENVIRONMENT"] = "production"
-      sh("./node_modules/.bin/expo", "prebuild", "--platform", "ios", "--no-install")
+      sh("./node_modules/.bin/expo", "prebuild", "--platform", "ios", "--clean", "--no-install")
       Dir.chdir("ios") { sh("bundle", "exec", "pod", "install") }
       sh("python3", File.join(ROOT, "scripts/prepare-ios-release-headers.py"), WORKSPACE_DIR)
       # Re-index the Release public headers before Xcode swaps the framework.
