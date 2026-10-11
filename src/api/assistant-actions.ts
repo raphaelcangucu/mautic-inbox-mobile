@@ -5,7 +5,7 @@ export type AssistantProposal = {
  fields:{operation?:'spam'|'restore'|'block'|'unblock'|'hide'|'show';reason?:string;account?:string;scope?:'inbox'|'instagram';body?:string;mode?:'public'|'private';take_attendance?:boolean;name?:string;description?:string;allowRestart?:boolean;contacts?:{id:number;name:string}[];may_trigger_campaign?:boolean;user_id?:number;user_name?:string};
  before?:Record<string,unknown>;
 };
-export const assistantSupportedActions=['inbox_moderate'];
+export const assistantSupportedActions=['inbox_moderate','comment_batches'];
 const tools=['inbox_moderate','mautic_reply_inbox','campaign_update','campaign_add_contacts','inbox_transfer'];
 export function checkedAssistantProposals(raw:unknown,agentKey:string):AssistantProposal[]{
  if(raw===undefined)return [];
@@ -17,7 +17,7 @@ export function checkedAssistantProposals(raw:unknown,agentKey:string):Assistant
   if(p.tool==='inbox_moderate'){
    if(!['spam','restore','block','unblock','hide','show'].includes(p.fields.operation)||typeof p.fields.reason!=='string'||!p.fields.reason.trim()||typeof p.fields.body!=='string'||!p.fields.body.trim()||typeof p.fields.account!=='string'||!['inbox','instagram'].includes(p.fields.scope)||!['instagram','facebook'].includes(p.target.channel)||targets.has(p.target.id)||(['hide','show'].includes(p.fields.operation)?p.target.channel!=='instagram'||p.fields.scope!=='instagram':p.fields.scope!=='inbox'))throw Error('Invalid assistant moderation');
    targets.add(p.target.id);
-  }else if(++writes>3)throw Error('Too many assistant write actions');
+  }else if(!(p.tool==='mautic_reply_inbox'&&p.fields.mode==='public'&&['instagram','facebook'].includes(p.target.channel))&&++writes>3)throw Error('Too many assistant write actions');
   seen.add(p.id);
  }
  return raw;
