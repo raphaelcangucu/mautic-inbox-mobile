@@ -278,6 +278,9 @@ platform :ios do
       ENV["MAUTIC_APNS_ENVIRONMENT"] = "production"
       sh("./node_modules/.bin/expo", "prebuild", "--platform", "ios", "--no-install")
       Dir.chdir("ios") { sh("bundle", "exec", "pod", "install") }
+      sh("python3", File.join(ROOT, "scripts/prepare-ios-release-headers.py"), WORKSPACE_DIR)
+      # Re-index the Release public headers before Xcode swaps the framework.
+      Dir.chdir("ios") { sh("bundle", "exec", "pod", "install") }
     end
   end
 
