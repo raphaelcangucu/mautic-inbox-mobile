@@ -11,7 +11,7 @@ parser.inline.ruler.before('emphasis','social_mention',(state,silent)=>{
  if((channel!=='instagram'&&channel!=='facebook')||state.src[state.pos]!=='@'||(state as typeof state&{linkLevel?:number}).linkLevel)return false;
  let wordStart=state.pos;while(wordStart>0&&!/\s/u.test(state.src[wordStart-1]))wordStart--;
  const before=state.src.slice(wordStart,state.pos);const boundary=before.replace(/[*_~]+$/,'');const previous=boundary.at(-1);
- if(previous&&!/[\s([{“‘"'«:]/u.test(previous))return false;
+ if(previous&&!/[\s([{“‘"'«:;,!?]/u.test(previous))return false;
  // Do not split a URL containing a mention-shaped path/query fragment.
  if(/(?:https?:\/\/|www\.)\S*$/i.test(before))return false;
  const match=/^@([a-zA-Z0-9._]+)/.exec(state.src.slice(state.pos,state.posMax));

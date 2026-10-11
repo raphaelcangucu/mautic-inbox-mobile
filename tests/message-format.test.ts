@@ -21,6 +21,7 @@ test('Instagram mentions preserve the original comment and link full handles inc
  const mentions=flatten(messageDocument('(@_carol_) @ana... **@pedro** e _@foo_bar_.','instagram')).filter(n=>n.type==='mention');
  assert.deepEqual(mentions.map(n=>n.text),['@_carol_','@ana','@pedro','@foo_bar']);
  assert.equal(mentions.at(-1)?.href,'https://www.instagram.com/foo_bar/');
+ assert.deepEqual(flatten(messageDocument('@ana,@bia;@carol!','instagram')).filter(n=>n.type==='mention').map(n=>n.text),['@ana','@bia','@carol']);
 });
 test('mentions follow the current network and never assume a social network in WhatsApp or Web Chat',()=>{
  assert.equal(flatten(messageDocument('@carol.suporte','facebook')).find(n=>n.type==='mention')?.href,'https://www.facebook.com/carol.suporte/');
