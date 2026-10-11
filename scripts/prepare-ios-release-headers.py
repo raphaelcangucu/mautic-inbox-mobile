@@ -31,6 +31,10 @@ def prepare(workspace: Path) -> int:
     for relative, contents in files.items():
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
+        # CocoaPods marks cached dependency files read-only. Replace the entry
+        # rather than trying to edit its contents in place.
+        if target.exists() or target.is_symlink():
+            target.unlink()
         target.write_bytes(contents)
     return len(files)
 

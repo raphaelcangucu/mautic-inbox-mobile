@@ -32,6 +32,7 @@ class ReleaseHeadersTest(unittest.TestCase):
             root = Path(directory)
             self.fixture(root)
             self.assertEqual(module.prepare(root), 3)
+            (root / "ios/Pods/ReactNativeDependencies/Headers/folly/dynamic.h").chmod(0o444)
             self.assertEqual(module.prepare(root), 3)
             self.assertEqual((root / "ios/Pods/ReactNativeDependencies/Headers/folly/dynamic.h").read_bytes(), b"release header")
 
