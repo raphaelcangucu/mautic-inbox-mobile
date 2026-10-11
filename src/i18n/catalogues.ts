@@ -2,6 +2,10 @@
 export const resources = {
   "pt-BR": {
     "translation": {
+      "contact.openProfile": "Abrir no {{channel}}",
+      "contact.profileOpenError": "Não foi possível abrir o perfil. Tente novamente.",
+      "contact.profileUnavailable": "O {{channel}} não informou um link público deste participante. Você pode cadastrá-lo no contato do Mautic.",
+
       "voice.audioWithDraft": "Envie ou limpe o texto antes de anexar o áudio. A transcrição pode ser adicionada ao texto existente.",
 
       "voice.title": "Mensagem por voz",
@@ -784,6 +788,10 @@ export const resources = {
   },
   "en": {
     "translation": {
+      "contact.openProfile": "Open in {{channel}}",
+      "contact.profileOpenError": "Could not open the profile. Try again.",
+      "contact.profileUnavailable": "{{channel}} did not provide a public link for this participant. You can add it to their Mautic contact.",
+
       "voice.audioWithDraft": "Send or clear the text before attaching audio. A transcript can be added to your existing text.",
 
       "voice.title": "Voice message",
@@ -1566,6 +1574,10 @@ export const resources = {
   },
   "es": {
     "translation": {
+      "contact.openProfile": "Abrir en {{channel}}",
+      "contact.profileOpenError": "No se pudo abrir el perfil. Inténtalo de nuevo.",
+      "contact.profileUnavailable": "{{channel}} no proporcionó un enlace público de este participante. Puedes añadirlo a su contacto de Mautic.",
+
       "voice.audioWithDraft": "Envía o borra el texto antes de adjuntar audio. Puedes añadir la transcripción al texto existente.",
 
       "voice.title": "Mensaje de voz",

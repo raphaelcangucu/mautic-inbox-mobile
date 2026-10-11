@@ -1,3 +1,5 @@
+import {SocialProfileLinks} from './SocialProfileLinks';
+import type {SocialProfiles} from '../api/social-profiles';
 import {t} from '../i18n/engine';
 import React,{useEffect,useRef,useState} from 'react';
 import {View,ScrollView} from 'react-native';
@@ -8,7 +10,7 @@ import {Sheet} from './Sheet';
 import {CrmAutocomplete} from './CrmAutocomplete';
 import type {CrmOption} from './crm-catalogue';
 import type {Conversation,Page} from '../api/types';
-type ContactCard={id:number;name:string;email:string;phone:string};
+type ContactCard={id:number;name:string;email:string;phone:string;social_profiles?:SocialProfiles};
 type ChannelOption={key:string;state_id:number|null;asset_id:number;channel:string;name:string;phone?:string|null;available:boolean;reason:string|null};
 type ContactDetail=ContactCard&{campaigns:{id:number;name:string}[];channels:ChannelOption[]};
 
@@ -23,7 +25,7 @@ export function StartContactConversation({contactId}:{contactId:number}){
 function DirectoryContact({contact,onBack}:{contact:ContactCard;onBack:()=>void}){
  const s=useApp();const c=useTheme();const [detail,setDetail]=useState<ContactDetail|null>(null);const [error,setError]=useState('');
  useEffect(()=>{let current=true;setDetail(null);setError('');const repo=s.repo;if(repo)void(async()=>{const cached=await repo.disk.get<ContactDetail>('contact:'+contact.id);if(current&&cached)setDetail(cached);if(s.offline)return;try{const fresh=await repo.api.request<ContactDetail>({method:'GET',path:`/inbox/mobile/contacts/${contact.id}`});await repo.disk.put('contact:'+contact.id,fresh);if(current)setDetail(fresh)}catch(e){if(current)setError(e instanceof Error?e.message:String(e))}})().catch(e=>{if(current)setError(String(e))});return()=>{current=false}},[s.active?.id,contact.id,s.offline]);
- return <View style={{flex:1}}><Header title={t("contact.title")} onBack={onBack}/><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:18,gap:14}}><T size={24} bold>{detail?.name||contact.name}</T><Card><DetailRow label="E-mail" value={detail?.email||contact.email||t("contact.notProvided")}/><DetailRow label={t("contact.phone")} value={detail?.phone||contact.phone||t("contact.notProvided")}/></Card><Card><T bold size={14}>{t("contact.campaigns")}</T>{detail?.campaigns.map(campaign=><T key={campaign.id} size={12}>{campaign.name}</T>)}{detail&&!detail.campaigns.length&&<T size={12} muted>{t("contact.noMembership")}</T>}</Card><StartContactConversation contactId={contact.id}/>{error&&<T size={12} color={c.warn} accessibilityRole="alert">{error}</T>}<T size={11} muted>{s.offline?t("contact.cachedData"):t("contact.realCrm")}</T></ScrollView></View>;
+ return <View style={{flex:1}}><Header title={t("contact.title")} onBack={onBack}/><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{padding:18,gap:14}}><T size={24} bold>{detail?.name||contact.name}</T><Card><DetailRow label="E-mail" value={detail?.email||contact.email||t("contact.notProvided")}/><DetailRow label={t("contact.phone")} value={detail?.phone||contact.phone||t("contact.notProvided")}/></Card><SocialProfileLinks contact={detail||contact}/><Card><T bold size={14}>{t("contact.campaigns")}</T>{detail?.campaigns.map(campaign=><T key={campaign.id} size={12}>{campaign.name}</T>)}{detail&&!detail.campaigns.length&&<T size={12} muted>{t("contact.noMembership")}</T>}</Card><StartContactConversation contactId={contact.id}/>{error&&<T size={12} color={c.warn} accessibilityRole="alert">{error}</T>}<T size={11} muted>{s.offline?t("contact.cachedData"):t("contact.realCrm")}</T></ScrollView></View>;
 }
 
 export function ContactDirectory(){

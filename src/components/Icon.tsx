@@ -2,6 +2,7 @@ import React from 'react';
 import Svg,{Path} from 'react-native-svg';
 import {useTheme} from '../theme';
 const paths:Record<string,string>={
+  "open-outline": "M14 3h7v7M21 3l-11 11M10 3H3v18h18v-7",
   "instagram": "M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4Zm5 5a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm5-2h.01",
   "facebook": "M14 21v-8h3l.5-4H14V7c0-1.2.4-2 2-2h2V1.5L15.5 1C12 1 10 3 10 6v3H7v4h3v8",
   "plus": "M12 5v14M5 12h14",
