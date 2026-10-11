@@ -11,7 +11,7 @@ export type CannedResponse = {id:number;name:string;body:string};
 export type CommentContext = {postTitle:string;postBody:string;commentBody?:string;image?:string|null;permalink:string;relatedId?:number;canPrivate:boolean;canPublic?:boolean};
 export type Conversation = {
   id: number; conversation_id: number; version: number; channel: Channel; contact_name: string; preview: string;
-  avatar_url: string | null; asset: {id: number; name: string;type?:string;phone?:string|null;handle?:string|null}; recipient: string;
+  avatar_url: string | null; asset_avatar_url?:string|null; asset: {id: number; name: string;type?:string;phone?:string|null;handle?:string|null}; recipient: string;
   assignee: {id: number; name: string} | null; lifecycle: 'open'|'snoozed'|'resolved'; needs_response: boolean;
   unread: number; human_takeover: boolean; last_message_at: string; updated_at: string;
   contact: {id: number; name: string; email: string; phone: string} | null;
@@ -22,7 +22,7 @@ export type Conversation = {
   moderation?:{spam:boolean;hidden:boolean;blockedAuthor:boolean}; moderation_available?:boolean; agent?:Agent|null;
   segments?:string[]; campaigns?:string[];
   // Explicit mobile/mock additions, not fields claimed to exist in InboxQuery.
-  mobile: {avatarKey?: 'camila'|'ricardo'|'bia'|'lucas'; ai: boolean; window_open: boolean; attachments: boolean; audio?: boolean};
+  mobile: {avatarKey?: 'camila'|'ricardo'|'bia'|'lucas'; ai: boolean; window_open: boolean; attachments: boolean; audio?: boolean; social_visuals?:boolean};
 };
 export type Message = {kind: 'message'|'comment'|'outbound'|'note'|'event'|'automatic'; id: number | string; body: string; timestamp: string; direction?: 'inbound'|'outbound'; request_id?: string; status?: 'sending'|'uncertain'|'failed'|'pending'|'sent'|'delivered'|'read'; retryable?:boolean; failure?:string|null; failure_code?:string|null; cooldown_seconds?:number|null; retry_of?:string|null; attempt_count?:number; display_id?:number|string; author?: string; attachment?: Attachment; ai?:string; replyMode?:'public'|'private'};
 export type Page<T> = {items: T[]; next_cursor: string | null; complete?:boolean};
