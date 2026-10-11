@@ -70,7 +70,7 @@ export function Chat(){
   if(retrying)return;setRetrying(messageKey(message));
   try{await s.retryMessage(message);if(qr)await checkQr(true)}finally{setRetrying(null)}
  }
- const render=({item,index}:{item:Message;index:number})=><ChatMessage message={item} previous={reversed[index+1]} comment={comment} whatsapp={conversation.channel==='whatsapp'} onEmail={value=>{setEmail(value);setPanel('crm')}} onCheck={()=>{void s.sync();void checkQr(true)}} onReport={()=>void Share.share({message:deliveryReport(conversation.id,conversation.asset.id,item)})} onRetry={()=>void retryMessage(item)} retryBusy={retrying===messageKey(item)} retryDisabled={s.offline||!!retrying}/>;
+ const render=({item,index}:{item:Message;index:number})=><ChatMessage message={item} previous={reversed[index+1]} comment={comment} channel={conversation.channel} whatsapp={conversation.channel==='whatsapp'} onEmail={value=>{setEmail(value);setPanel('crm')}} onCheck={()=>{void s.sync();void checkQr(true)}} onReport={()=>void Share.share({message:deliveryReport(conversation.id,conversation.asset.id,item)})} onRetry={()=>void retryMessage(item)} retryBusy={retrying===messageKey(item)} retryDisabled={s.offline||!!retrying}/>;
  return <Animated.View style={[{flex:1},swipe.style]}><View testID="compact-chat-header" style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:8,paddingVertical:6,backgroundColor:c.paper,borderBottomWidth:1,borderColor:c.line}}>
  <Tap label={t("chat.backInbox")} onPress={backToInbox} style={{width:36,minHeight:44,alignItems:'center'}}><Icon name="chevron-back" size={21}/></Tap>
  <Avatar conversation={conversation} size={34} showChannel={false}/>

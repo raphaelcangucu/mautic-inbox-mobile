@@ -14,3 +14,24 @@ test('HTML and image payloads stay inert and URLs cannot execute application sch
  const all=flatten(messageDocument('<script>alert(1)</script> ![photo](https://tracker.example/x) [bad](javascript:alert(1))'));
  assert.equal(all.some(n=>n.type==='html_inline'),false);assert.equal(all.find(n=>n.type==='image')?.text,'photo');assert.equal(messageLink('javascript:alert(1)'),null);assert.equal(messageLink('file:///etc/passwd'),null);assert.equal(messageLink('https://user:pass@example.com'),null);
 });
+test('Instagram mentions preserve the original comment and link full handles including dots and underscores',()=>{
+ const body='Essa @fenix_dos.sl0ts é boa recomendo.👍🏻';const all=flatten(messageDocument(body,'instagram'));
+ assert.equal(all.find(n=>n.type==='mention')?.href,'https://www.instagram.com/fenix_dos.sl0ts/');
+ assert.equal(all.filter(n=>n.type==='text'||n.type==='mention').map(n=>n.text).join(''),body);
+ const mentions=flatten(messageDocument('(@_carol_) @ana... **@pedro** e _@foo_bar_.','instagram')).filter(n=>n.type==='mention');
+ assert.deepEqual(mentions.map(n=>n.text),['@_carol_','@ana','@pedro','@foo_bar']);
+ assert.equal(mentions.at(-1)?.href,'https://www.instagram.com/foo_bar/');
+});
+test('mentions follow the current network and never assume a social network in WhatsApp or Web Chat',()=>{
+ assert.equal(flatten(messageDocument('@carol.suporte','facebook')).find(n=>n.type==='mention')?.href,'https://www.facebook.com/carol.suporte/');
+ assert.equal(flatten(messageDocument('@carol.suporte','instagram')).find(n=>n.type==='mention')?.href,'https://www.instagram.com/carol.suporte/');
+ for(const channel of ['whatsapp','webchat',undefined] as const)assert.equal(flatten(messageDocument('@carol.suporte',channel)).some(n=>n.type==='mention'),false);
+});
+test('emails, existing links, escaped text, code and malformed handles never become social mentions',()=>{
+ const body='pessoa@empresa.com https://example.com/@carol https://example.com?x=(@carol) [@carol](https://example.com) `@carol` \\@carol\n\n```txt\n@carol\n```';
+ const all=flatten(messageDocument(body,'instagram'));assert.equal(all.some(n=>n.type==='mention'),false);
+ assert.equal(all.some(n=>n.href==='mailto:pessoa@empresa.com'),true);
+ assert.equal(all.some(n=>n.href==='https://example.com/@carol'),true);
+ for(const body of ['@','@@carol','@josé','@bad-name','@'+'a'.repeat(31),'@123456789','@direct','word@carol'])assert.equal(flatten(messageDocument(body,'instagram')).some(n=>n.type==='mention'),false,body);
+ assert.equal(flatten(messageDocument('@carol_name','facebook')).some(n=>n.type==='mention'),false);
+});
