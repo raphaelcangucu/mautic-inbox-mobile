@@ -2,6 +2,8 @@ import React from 'react';
 import Svg,{Path} from 'react-native-svg';
 import {useTheme} from '../theme';
 const paths:Record<string,string>={
+  "instagram": "M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4Zm5 5a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm5-2h.01",
+  "facebook": "M14 21v-8h3l.5-4H14V7c0-1.2.4-2 2-2h2V1.5L15.5 1C12 1 10 3 10 6v3H7v4h3v8",
   "plus": "M12 5v14M5 12h14",
   "clock": "M12 8v5l3 2M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Z",
   "chat": "M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z",
