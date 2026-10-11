@@ -101,9 +101,9 @@ export function Chat(){
  <Sheet title={t("chat.details")} visible={contextSheet} onClose={()=>setContextSheet(false)}><T bold size={17}>{conversation.contact_name}</T><T size={13} muted>{channels[conversation.channel]} · {connection.name}</T>{connection.phone&&<T testID="chat-connection-phone" size={13} color={c.blue}>{connection.phone}</T>}{conversation.origins.campaign&&conversation.origins.campaign!==conversation.asset.name&&<T size={13}>{t("actions.campaignLabel",{name:conversation.origins.campaign})}</T>}{conversation.origins.page&&<T size={12} muted>{conversation.origins.page}</T>}<T size={13}>{conversation.assignee?(t("chat.assignee")+" "+conversation.assignee.name):t("filter.unassigned")}</T><Button quiet label={t("chat.contactHistory")} onPress={()=>{setContextSheet(false);s.navigate('contact')}}/>{comment&&<Button quiet label={t("chat.viewOriginal")} onPress={()=>{setContextSheet(false);void publication()}}/>}</Sheet>
  <Sheet title={t("chat.actions")} visible={menu} onClose={()=>setMenu(false)}>
  <View>
+ {actionRow(t("chat.canned"),'chatbubbles-outline',()=>setPanel('canned'),{testID:'open-canned'})}
  {qr&&actionRow(t("qr.manageConnection"),'refresh',()=>setQrRequest(value=>value+1),{testID:'chat-open-qr-connection'})}
  {actionRow(t("chat.suggest"),'sparkles-outline',suggest)}
- {actionRow(t("chat.canned"),'chatbubbles-outline',()=>setPanel('canned'),{testID:'open-canned'})}
  {conversation.channel==='whatsapp'&&actionRow(t("chat.whatsappTemplates"),'document-text-outline',()=>void cta(),{testID:'templates'})}
  {actionRow(t("chat.historyContact"),'person-outline',()=>s.navigate('contact'))}
  {comment&&actionRow(t("chat.originalPost"),'megaphone-outline',()=>void publication())}
