@@ -10,12 +10,7 @@ import sys
 import tarfile
 
 
-def prepare(workspace: Path) -> int:
-    version = json.loads((workspace / "node_modules/react-native/package.json").read_text())["version"]
-    pods = workspace / "ios/Pods"
-    artifact = pods / f"ReactNativeDependencies-artifacts/reactnative-dependencies-{version}-release.tar.gz"
-    destination = pods / "ReactNativeDependencies/Headers"
-    prefix = "packages/react-native/third-party/ReactNativeDependencies.xcframework/Headers/"
+def copy_headers(artifact: Path, destination: Path, prefix: str, required: tuple) -> int:
     files = {}
     with tarfile.open(artifact) as archive:
         for member in archive.getmembers():
@@ -25,9 +20,9 @@ def prepare(workspace: Path) -> int:
             if not member.isfile() or relative.is_absolute() or ".." in relative.parts:
                 raise ValueError(f"Unsafe dependency header: {member.name}")
             files[str(relative)] = archive.extractfile(member).read()
-    for required in ("folly/dynamic.h", "folly/json/dynamic.h", "folly/folly-config.h"):
-        if required not in files:
-            raise ValueError(f"Release artifact is missing {required}")
+    for header in required:
+        if header not in files:
+            raise ValueError(f"Release artifact is missing {header}")
     for relative, contents in files.items():
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -39,5 +34,27 @@ def prepare(workspace: Path) -> int:
     return len(files)
 
 
+def prepare(workspace: Path) -> int:
+    native = workspace / "node_modules/react-native"
+    version = json.loads((native / "package.json").read_text())["version"]
+    pods = workspace / "ios/Pods"
+    count = copy_headers(
+        pods / f"ReactNativeDependencies-artifacts/reactnative-dependencies-{version}-release.tar.gz",
+        pods / "ReactNativeDependencies/Headers",
+        "packages/react-native/third-party/ReactNativeDependencies.xcframework/Headers/",
+        ("folly/dynamic.h", "folly/json/dynamic.h", "folly/folly-config.h"),
+    )
+    properties = dict(line.split("=", 1) for line in (native / "sdks/hermes-engine/version.properties").read_text().splitlines() if "=" in line)
+    config = json.loads((workspace / "ios/Podfile.properties.json").read_text())
+    key = "HERMES_V1_VERSION_NAME" if config.get("expo.useHermesV1") == "true" else "HERMES_VERSION_NAME"
+    count += copy_headers(
+        pods / f"hermes-engine-artifacts/hermes-ios-{properties[key]}-release.tar.gz",
+        pods / "hermes-engine/destroot/include",
+        "./destroot/include/",
+        ("hermes/hermes.h", "hermes/Public/RuntimeConfig.h", "jsi/hermes.h"),
+    )
+    return count
+
+
 if __name__ == "__main__":
-    print(f"Prepared {prepare(Path(sys.argv[1]))} locked React Native Release headers")
+    print(f"Prepared {prepare(Path(sys.argv[1]))} locked React Native and Hermes Release headers")
