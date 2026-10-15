@@ -15,12 +15,12 @@ export class AccessCache {
   this.ready=raw.scan<Revocation>('access:revoked:').then(async items=>{for(const {id} of items){if(!this.revoked.has(id))this.revoked.set(id,0);await this.purge(id)}});
   const serial=<T>(job:()=>Promise<T>)=>{const pending=this.writes.then(job,job);this.writes=pending.catch(()=>{});return pending;};
   const conversationKey=(key:string,value?:any)=>{
-   const match=/^(?:conversation|message|draft|cursor|retry):(\d+)(?::|$)/.exec(key);
+   const match=/^(?:conversation|message|draft|cursor|retry|favorite):(\d+)(?::|$)/.exec(key);
    return match?Number(match[1]):key.startsWith('outbox:')?Number(value?.conversationId)||0:0;
   };
   this.disk={
    get:async<T>(key:string)=>{await this.ready;await this.writes;const id=conversationKey(key);return id&&this.revoked.has(id)?null:raw.get<T>(key)},
-   scan:async<T>(prefix:string)=>{await this.ready;await this.writes;const denied=/^message:(\d+):/.exec(prefix);if(denied&&this.revoked.has(Number(denied[1])))return [];const items=await raw.scan<T>(prefix);return prefix==='conversation:'?items.filter(item=>!this.revoked.has((item as Conversation).id)):prefix==='outbox:'?items.filter(item=>!this.revoked.has((item as any).conversationId)):items},
+   scan:async<T>(prefix:string)=>{await this.ready;await this.writes;const denied=/^(?:message|favorite):(\d+):/.exec(prefix);if(denied&&this.revoked.has(Number(denied[1])))return [];const items=await raw.scan<T>(prefix);return prefix==='conversation:'?items.filter(item=>!this.revoked.has((item as Conversation).id)):prefix==='outbox:'?items.filter(item=>!this.revoked.has((item as any).conversationId)):items},
    put:async(key,value)=>{await this.ready;const id=conversationKey(key,value);const started=this.revision;return serial(async()=>{if(id&&(this.revoked.has(id)||(this.epochs.get(id)??-1)>started||await raw.get('access:revoked:'+id)))return;await raw.put(key,value)})},
    remove:async key=>{await this.ready;return serial(()=>raw.remove(key))},clear:async()=>{await this.ready;return serial(async()=>{await raw.clear();this.revoked.clear()})},close:async()=>{await this.ready;await this.writes;await raw.close()},
   };
@@ -64,6 +64,7 @@ export class AccessCache {
  private async purge(id:number){
    await this.raw.put('access:revoked:'+id,{id});
    await this.raw.remove('conversation:'+id);
+   for(const favorite of await this.raw.scan<{key:string}>('favorite:'+id+':'))if(typeof favorite.key==='string'&&favorite.key.startsWith('favorite:'+id+':'))await this.raw.remove(favorite.key);
    for(const message of await this.raw.scan<any>('message:'+id+':'))await this.raw.remove('message:'+id+':'+message.kind+':'+message.id);
    await this.raw.remove('draft:'+id+':reply');await this.raw.remove('draft:'+id+':note');await this.raw.remove('cursor:'+id);
    for(const entry of await this.raw.scan<any>('outbox:'))if(entry.conversationId===id)await this.raw.remove('outbox:'+entry.request_id);

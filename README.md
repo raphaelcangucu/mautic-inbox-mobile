@@ -15,6 +15,7 @@ Built for customer-facing teams that need to keep an eye on their queue away fro
 - **See what needs attention.** Bring your connected channels together and filter the queue by channel, assignee and status. WhatsApp, Instagram, Facebook and WebChat share the same support workflow.
 - **Pick up where you left off.** Read the history, add internal notes and use saved replies. Local history and drafts help you continue your work as you move between screens.
 - **Ask your Mautic.** Explore campaigns, contacts and installation information with the assistant, using your account permissions and explicit consent before sharing data with the AI provider.
+- **Keep and share useful messages.** Tap or hold a message to copy its complete text and links, star it locally, share it with another app or forward it into another conversation’s draft. Starred messages stay in the encrypted cache for the current account and are removed when conversation access is revoked.
 - **Find the right contact.** Search by name, email or phone. Combine segment and campaign filters, then open a WhatsApp QR conversation when the contact has a valid phone number and an active connection is available.
 - **Keep comments in the conversation.** Follow Instagram and Facebook comments, mark spam and organize moderation in the support queue. Blocking an author in the queue does not block their social media profile.
 - **Switch between your Mautics.** Add installation URLs, sign in to your accounts and keep sessions separate. Receive notifications sent by the installation you connected.
