@@ -1,3 +1,4 @@
+import {MessageFavorites} from './message-favorites.ts';
 import {AccessCache} from './access-cache.ts';
 import {canRetryMessage} from './message-retry.ts';
 import {t} from '../i18n/engine.ts';
@@ -6,20 +7,23 @@ import {ApiError, messageKey, defaultView, type Conversation, type Message, type
 export class InboxRepository {
   private work=new Set<Promise<unknown>>();
   private retries=new Map<string,Promise<'registered'|'already_registered'>>();
+  private favorites:MessageFavorites;
   readonly disk:Storage;readonly api:Transport;readonly access:AccessCache;
   constructor(disk:Storage,api:Transport,onRevoked?:(id:number)=>void){
-    this.access=new AccessCache(disk,api,onRevoked);this.disk=this.access.disk;this.api=this.access.api;
+    this.access=new AccessCache(disk,api,onRevoked);this.disk=this.access.disk;this.api=this.access.api;this.favorites=new MessageFavorites(this.disk);
     // Logout waits for complete repository operations, including their cache writes.
-    for(const key of ['list','more','detail','history','poll','transition','send','retryMessage','recover','refreshHistory'] as const){
+    for(const key of ['messageFavorites','toggleMessageFavorite','list','more','detail','history','poll','transition','send','retryMessage','recover','refreshHistory'] as const){
       const original=this[key].bind(this) as (...args:any[])=>Promise<any>;
       (this as any)[key]=(...args:any[])=>{const task=original(...args);this.work.add(task);void task.then(()=>this.work.delete(task),()=>this.work.delete(task));return task};
     }
   }
+  async messageFavorites(id:number){return this.favorites.list(id)}
+  async toggleMessageFavorite(id:number,message:Message){return this.favorites.toggle(id,message)}
   async settle(){await Promise.allSettled([...this.work])}
   async cachedList(){const all=await this.disk.scan<Conversation>('conversation:');const ids=await this.disk.get<number[]>('sync:list-ids');return (ids?all.filter(c=>ids.includes(c.id)):all).sort((a,b)=>b.last_message_at.localeCompare(a.last_message_at)||b.id-a.id)}
   async cachedMessages(id:number){return (await this.disk.scan<Message>('message:'+id+':')).sort((a,b)=>a.timestamp.localeCompare(b.timestamp))}
   async saveConversations(items:Conversation[]){for(const c of items)await this.disk.put('conversation:'+c.id,c)}
-  async saveMessages(id:number,items:Message[]){for(const m of items)await this.disk.put('message:'+id+':'+messageKey(m),m)}
+  async saveMessages(id:number,items:Message[]){for(const m of items)await this.disk.put('message:'+id+':'+messageKey(m),m);await this.favorites.reconcile(id,items)}
   async view(){return {...defaultView(),...await this.disk.get<ViewState>('ui:view')}}
   private async listBatch(cursor:string|null,limit:number){
     const items:Conversation[]=[];const seen=new Set<string>();let complete=true;

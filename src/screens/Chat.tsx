@@ -1,3 +1,5 @@
+import {MessageActions} from '../components/MessageActions';
+import {favoriteIdentity,resolveFavorites,type MessageFavorite} from '../api/message-favorites';
 import {SocialProfileLinks} from '../components/SocialProfileLinks';
 import {conversationConnection} from '../api/conversation-connection';
 import {deliveryReport} from '../api/delivery-diagnostics';
@@ -14,7 +16,7 @@ import {canModerateConversation} from '../api/moderation';
 import {ChatMessage} from '../components/ChatMessage';
 import {visibleChatMessages} from '../components/chat-timeline';
 import {useSwipeBack} from '../hooks/useSwipeBack';
-import {Linking,Alert,AppState,Share} from 'react-native';
+import {Linking,Alert,AppState,Share,Platform} from 'react-native';
 import React,{useEffect,useRef,useState,useMemo} from 'react';
 import {View,FlatList,TextInput,ScrollView,Keyboard,Animated} from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
@@ -30,11 +32,18 @@ import {channels,messageKey,type Message,type Template} from '../api/types';
 export function Chat(){
  const [qrRequest,setQrRequest]=useState(0);const [qrState,setQrState]=useState<QrPairing|null>(null);const qrProbe=useRef(0);
  const c=useTheme();const s=useApp();const conversation=s.conversations.find(x=>x.id===s.conversationId);const list=useRef<FlatList<Message>>(null);const atEnd=useRef(true);const restoring=useRef(true);const messages=s.messages[s.conversationId]||[];const visibleMessages=useMemo(()=>visibleChatMessages(messages),[messages]);const reversed=useMemo(()=>[...visibleMessages].reverse(),[visibleMessages]);const [menu,setMenu]=useState(false);const [contextSheet,setContextSheet]=useState(false);const [panel,setPanel]=useState<Panel>(null);const [email,setEmail]=useState('');const [templates,setTemplates]=useState<Template[]>([]);const [templateSheet,setTemplateSheet]=useState(false);const [templateReason,setTemplateReason]=useState('');const [selected,setSelected]=useState<Template|null>(null);const [variables,setVariables]=useState<Record<string,string>>({});const [attachmentSheet,setAttachmentSheet]=useState(false);
+ const [actionMessage,setActionMessage]=useState<Message|null>(null);const [favoriteRecords,setFavoriteRecords]=useState<MessageFavorite[]>([]);const [favoriteSheet,setFavoriteSheet]=useState(false);const [favoriteMessages,setFavoriteMessages]=useState<Message[]>([]);
+ const pendingMessagePanel=useRef<(()=>void)|null>(null);
+ const afterMessagePanel=()=>{const action=pendingMessagePanel.current;pendingMessagePanel.current=null;action?.()};
+ const favoriteIds=useMemo(()=>new Set(favoriteRecords.flatMap(record=>[record.identity,record.messageKey])),[favoriteRecords]);
+ useEffect(()=>{let alive=true;setFavoriteRecords([]);setActionMessage(null);setFavoriteSheet(false);pendingMessagePanel.current=null;const repo=s.repo,id=s.conversationId;if(repo)void repo.messageFavorites(id).then(records=>{if(alive)setFavoriteRecords(records)}).catch(()=>{});return()=>{alive=false}},[s.repo,s.conversationId]);
+ async function favoriteMessage(){const repo=s.repo,message=actionMessage,id=s.conversationId;if(!repo||!message)return;const saved=await repo.toggleMessageFavorite(id,message);const records=await repo.messageFavorites(id);if(useApp.getState().repo!==repo||useApp.getState().conversationId!==id)return;setFavoriteRecords(records);setFavoriteMessages(resolveFavorites(records,await repo.cachedMessages(id)));s.notify(t(saved?'message.favorited':'message.unfavorited'))}
+ async function showFavorites(){const repo=s.repo,id=s.conversationId;if(!repo)return;const records=await repo.messageFavorites(id),cached=await repo.cachedMessages(id);if(useApp.getState().repo!==repo||useApp.getState().conversationId!==id)return;setFavoriteRecords(records);setFavoriteMessages(resolveFavorites(records,cached));if(Platform.OS==='ios'){pendingMessagePanel.current=()=>{if(useApp.getState().repo===repo&&useApp.getState().conversationId===id)setFavoriteSheet(true)};setMenu(false)}else{setMenu(false);setFavoriteSheet(true)}}
  const [retrying,setRetrying]=useState<string|null>(null);
  const [postSheet,setPostSheet]=useState(false);const [postBusy,setPostBusy]=useState(false);const [postError,setPostError]=useState('');
  const voiceRef=useRef<VoiceHandle>(null);const [voiceBusy,setVoiceBusy]=useState(false);
  const backToInbox=()=>{Keyboard.dismiss();const kind=conversation?.kind==='comments'?'comments':'inbox';if(s.view.kind!==kind)s.setView({kind,listOffset:0,railOffset:0});s.navigate('inbox')};
- const swipe=useSwipeBack(backToInbox,!menu&&!contextSheet&&!panel&&!templateSheet&&!attachmentSheet&&!postSheet&&!voiceBusy);
+ const swipe=useSwipeBack(backToInbox,!menu&&!contextSheet&&!panel&&!templateSheet&&!attachmentSheet&&!postSheet&&!voiceBusy&&!actionMessage&&!favoriteSheet);
  useEffect(()=>{restoring.current=true;atEnd.current=true;const timer=setTimeout(()=>{const offset=s.view.chatOffsets[s.conversationId];if(offset!==undefined){list.current?.scrollToOffset({offset,animated:false});atEnd.current=false}else list.current?.scrollToOffset({offset:0,animated:false});restoring.current=false},150);return()=>clearTimeout(timer)},[s.conversationId]);
  useEffect(()=>{if(!restoring.current&&atEnd.current){requestAnimationFrame(()=>list.current?.scrollToOffset({offset:0,animated:true}));useApp.setState({unseen:0})}},[visibleMessages.length]);
  const viewability=useRef(({viewableItems}:{viewableItems:any[]})=>{const st=useApp.getState();const data=visibleChatMessages(st.messages[st.conversationId]||[]);const last=data.at(-1);if(last&&viewableItems.some(x=>messageKey(x.item)===messageKey(last))){void st.read()}const first=viewableItems[0]?.item;if(first)st.setView({chatAnchors:{...st.view.chatAnchors,[st.conversationId]:messageKey(first)}})}).current;
@@ -70,7 +79,7 @@ export function Chat(){
   if(retrying)return;setRetrying(messageKey(message));
   try{await s.retryMessage(message);if(qr)await checkQr(true)}finally{setRetrying(null)}
  }
- const render=({item,index}:{item:Message;index:number})=><ChatMessage message={item} previous={reversed[index+1]} comment={comment} channel={conversation.channel} whatsapp={conversation.channel==='whatsapp'} onEmail={value=>{setEmail(value);setPanel('crm')}} onCheck={()=>{void s.sync();void checkQr(true)}} onReport={()=>void Share.share({message:deliveryReport(conversation.id,conversation.asset.id,item)})} onRetry={()=>void retryMessage(item)} retryBusy={retrying===messageKey(item)} retryDisabled={s.offline||!!retrying}/>;
+ const render=({item,index}:{item:Message;index:number})=><ChatMessage onActions={()=>{Keyboard.dismiss();setActionMessage(item)}} favorite={(favoriteIds.has(favoriteIdentity(item))||favoriteIds.has(messageKey(item)))} message={item} previous={reversed[index+1]} comment={comment} channel={conversation.channel} whatsapp={conversation.channel==='whatsapp'} onEmail={value=>{setEmail(value);setPanel('crm')}} onCheck={()=>{void s.sync();void checkQr(true)}} onReport={()=>void Share.share({message:deliveryReport(conversation.id,conversation.asset.id,item)})} onRetry={()=>void retryMessage(item)} retryBusy={retrying===messageKey(item)} retryDisabled={s.offline||!!retrying}/>;
  return <Animated.View style={[{flex:1},swipe.style]}><View testID="compact-chat-header" style={{flexDirection:'row',alignItems:'center',gap:8,paddingHorizontal:8,paddingVertical:6,backgroundColor:c.paper,borderBottomWidth:1,borderColor:c.line}}>
  <Tap label={t("chat.backInbox")} onPress={backToInbox} style={{width:36,minHeight:44,alignItems:'center'}}><Icon name="chevron-back" size={21}/></Tap>
  <Avatar conversation={conversation} size={34} showChannel={false}/>
@@ -98,10 +107,13 @@ export function Chat(){
  </View>
  <VoiceComposer key={s.active?.id+':'+conversation.id+':'+s.mode} ref={voiceRef} onBusy={setVoiceBusy} audioAllowed={s.mode==='reply'&&conversation.mobile.audio===true} onText={value=>{const current=useApp.getState();current.setDraft(appendTranscript(current.draft,value))}} onAudio={async (value,valid)=>{const current=useApp.getState();if(current.draft.trim())throw Error('audio_with_draft');if(!current.active)return;const key=accountStorageId(current.active);const staged=await stageAudio(key,value);const fresh=useApp.getState();if(fresh.active?.id!==current.active.id||fresh.conversationId!==current.conversationId||fresh.mode!==current.mode||!valid()||fresh.draft.trim()||fresh.attachment){await discardStagedAudio(key,staged.uri);return}useApp.setState({attachment:staged})}}/>
  </View>
+ <MessageActions message={actionMessage} favorite={!!actionMessage&&(favoriteIds.has(favoriteIdentity(actionMessage))||favoriteIds.has(messageKey(actionMessage)))} onClose={()=>setActionMessage(null)} onFavorite={favoriteMessage}/>
+ <Sheet title={t('message.favorites')} visible={favoriteSheet} onClose={()=>setFavoriteSheet(false)} onDismiss={afterMessagePanel}>{!favoriteMessages.length&&<T muted size={13}>{t('message.noFavorites')}</T>}{favoriteMessages.map(message=><Tap key={messageKey(message)} label={message.body||message.attachment?.name||t('message.noText')} onPress={()=>{if(Platform.OS==='ios')pendingMessagePanel.current=()=>setActionMessage(message);else setActionMessage(message);setFavoriteSheet(false)}} style={{paddingVertical:10,borderBottomWidth:1,borderColor:c.line,gap:5}}><T size={13} numberOfLines={4}>{message.body||message.attachment?.name||t('message.noText')}</T><Icon name="star" size={14} color={c.blue}/></Tap>)}</Sheet>
  {qr&&<WhatsQrConnections assetId={conversation.asset.id} request={qrRequest} hideTrigger onConnected={()=>{void s.sync();void checkQr()}}/>}
  <Sheet title={t("chat.details")} visible={contextSheet} onClose={()=>setContextSheet(false)}><T bold size={17}>{conversation.contact_name}</T><SocialProfileLinks contact={conversation.contact} conversation={conversation}/><T size={13} muted>{channels[conversation.channel]} · {connection.name}</T>{connection.phone&&<T testID="chat-connection-phone" size={13} color={c.blue}>{connection.phone}</T>}{conversation.origins.campaign&&conversation.origins.campaign!==conversation.asset.name&&<T size={13}>{t("actions.campaignLabel",{name:conversation.origins.campaign})}</T>}{conversation.origins.page&&<T size={12} muted>{conversation.origins.page}</T>}<T size={13}>{conversation.assignee?(t("chat.assignee")+" "+conversation.assignee.name):t("filter.unassigned")}</T><Button quiet label={t("chat.contactHistory")} onPress={()=>{setContextSheet(false);s.navigate('contact')}}/>{comment&&<Button quiet label={t("chat.viewOriginal")} onPress={()=>{setContextSheet(false);void publication()}}/>}</Sheet>
- <Sheet title={t("chat.actions")} visible={menu} onClose={()=>setMenu(false)}>
+ <Sheet title={t("chat.actions")} visible={menu} onClose={()=>setMenu(false)} onDismiss={afterMessagePanel}>
  <View>
+ {actionRow(t('message.favorites'),'star',()=>void showFavorites().catch(()=>{setMenu(false);s.notify(t('message.favoriteError'))}),{testID:'open-message-favorites'})}
  {actionRow(t("chat.canned"),'chatbubbles-outline',()=>setPanel('canned'),{testID:'open-canned'})}
  {qr&&actionRow(t("qr.manageConnection"),'refresh',()=>setQrRequest(value=>value+1),{testID:'chat-open-qr-connection'})}
  {actionRow(t("chat.suggest"),'sparkles-outline',suggest)}
