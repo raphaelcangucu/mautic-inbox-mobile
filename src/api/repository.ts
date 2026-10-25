@@ -41,7 +41,18 @@ export class InboxRepository {
   async list(){const previous=(await this.disk.scan<Conversation>('conversation:')).map(c=>c.id);const batch=await this.listBatch(null,Math.max(200,previous.length));if(batch.complete)await this.access.completeList(batch.items.map(c=>c.id),previous);return this.persistList([...new Map(batch.items.map(c=>[c.id,c])).values()],batch.cursor,batch.complete)}
   async more(){const cursor=await this.disk.get<string>('sync:list-cursor');if(!cursor)return this.cachedList();const previous=await this.cachedList();const batch=await this.listBatch(cursor,200);const items=[...new Map([...previous,...batch.items].map(c=>[c.id,c])).values()].sort((a,b)=>b.last_message_at.localeCompare(a.last_message_at)||b.id-a.id);return this.persistList(items,batch.cursor,batch.complete)}
   async detail(id:number){const c=await this.api.request<Conversation>({method:'GET',path:`/inbox/api/conversations/${id}`});await this.saveConversations([c]);return c}
-  async history(id:number,before?:string){const p=await this.api.request<Page<Message>>({method:'GET',path:`/inbox/api/conversations/${id}/history`,query:{limit:40,...(before?{before}:{})}});await this.saveMessages(id,p.items);await this.reconcile(id,p.items);if(!before)await this.disk.put('cursor:'+id,p.next_cursor);return p}
+  async history(id:number,before?:string){const p=await this.api.request<Page<Message>>({method:'GET',path:`/inbox/api/conversations/${id}/history`,query:{limit:40,...(before?{before}:{})}});await this.saveMessages(id,p.items);await this.reconcile(id,p.items);if(!before){await this.disk.put('cursor:'+id,p.next_cursor);await this.prune(id,p)}return p}
+  /**
+   * The newest page is the server's whole truth from its oldest item to its newest one (all of
+   * history when there is no older page). A cached server message in that range that the page
+   * lacks was hidden or removed there, like an e-mail polled while its request card was pending.
+   */
+  private async prune(id:number,page:Page<Message>){
+    if(!page.items.length)return;
+    const time=(m:Message)=>Date.parse(m.timestamp);const keep=new Set(page.items.map(messageKey));
+    const oldest=page.next_cursor?Math.min(...page.items.map(time)):-Infinity;const newest=Math.max(...page.items.map(time));
+    for(const m of await this.cachedMessages(id))if(!String(m.id).startsWith('local-')&&!keep.has(messageKey(m))&&time(m)>oldest&&time(m)<=newest)await this.disk.remove('message:'+id+':'+messageKey(m));
+  }
   async refreshHistory(id:number){const previous=await this.cachedMessages(id);const known=new Set(previous.map(messageKey));let page=await this.history(id);let cursor=page.next_cursor;let count=0;while(previous.length&&cursor&&!page.items.some(m=>known.has(messageKey(m)))&&count++<20){page=await this.history(id,cursor);cursor=page.next_cursor}return this.cachedMessages(id)}
   async poll(id?:number){const p=await this.api.request<{conversations:Conversation[];timeline:Message[];next_since:string;has_more:boolean}>({method:'GET',path:'/inbox/api/updates',query:{since:await this.disk.get<string>('sync:since')||'',...(id?{state_id:id}:{})}});await this.saveConversations(p.conversations);if(id){await this.saveMessages(id,p.timeline);await this.reconcile(id,p.timeline)}await this.disk.put('sync:since',p.next_since);await this.disk.put('sync:last',Date.now());return p}
   async transition(id:number,version:number,action:string,payload:Record<string,unknown>={}){const c=await this.api.request<Conversation>({method:'POST',path:`/inbox/api/conversations/${id}/${action==='take'?'take':'state'}`,body:action==='take'?{version}:{version,action,...payload}});await this.saveConversations([c]);return c}

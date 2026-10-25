@@ -45,7 +45,9 @@ export function EmailCard({message:m,conversation,open,onToggle,onActions,favori
  const image=(src:string,alt:string,key:number)=><EmailImage key={key} src={src} alt={alt} attachments={attachments} showRemote={images}/>;
  async function original(){
   if(!account||originalBusy)return;setOriginalBusy(true);
-  try{const api=useApp.getState().repo?.api;if(!api)throw Error(t('email.originalUnavailable'));const url=await originalLink(api,account,m.id);await WebBrowser.openBrowserAsync(url)}
+  // createTask:false opens the tab in the app's own task. In its own task (the default), Android
+  // brings back any tab left there, such as an abandoned browser login, instead of this link.
+  try{const api=useApp.getState().repo?.api;if(!api)throw Error(t('email.originalUnavailable'));const url=await originalLink(api,account,m.id);await WebBrowser.openBrowserAsync(url,{createTask:false})}
   catch(e){notify(e instanceof Error?e.message:t('email.originalUnavailable'))}finally{setOriginalBusy(false)}
  }
  const headerLabel=t(open?'email.collapseCard':'email.openCard',{name:sender});
