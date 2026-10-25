@@ -1,0 +1,39 @@
+appId: com.distributionmachine.mauticinbox.demo
+name: E-mail 02 · Gmail-style thread with subject, account chip, grouped cards and events
+---
+- tapOn:
+    id: conversation-8
+- extendedWaitUntil:
+    visible:
+      id: email-thread-subject
+    timeout: 15000
+- assertVisible:
+    id: email-thread-subject
+    text: 'Re: Por que você ainda não depositou\?'
+- assertVisible:
+    id: email-thread-account
+- assertVisible: 'Macro Markets · contato@macromarkets\.com'
+# The latest (unread) e-mail starts open, with the proxied inline image.
+- extendedWaitUntil:
+    visible:
+      id: email-card-open-9010
+    timeout: 10000
+- assertVisible: '.*Consigo trazer esses ativos.*'
+- assertVisible:
+    id: email-inline-image
+- assertVisible:
+    id: email-reply
+- assertVisible:
+    id: email-forward
+- takeScreenshot: 02-email-thread
+# Events and internal notes sit between the cards.
+- scrollUntilVisible:
+    element: 'Lead quente: respondeu a pesquisa.*'
+    direction: UP
+- assertVisible: '.*respondeu o formulário Pesquisa: por que não depositou.*'
+# More than four collapsed e-mails in a row become one summary row.
+- scrollUntilVisible:
+    element:
+      id: email-earlier-messages
+    direction: UP
+- assertVisible: '5 mensagens anteriores'

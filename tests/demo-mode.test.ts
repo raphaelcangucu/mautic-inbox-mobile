@@ -12,6 +12,7 @@ import {MockTransport} from '../src/api/mock.ts';
 import {InboxRepository} from '../src/api/repository.ts';
 import {demoAccounts,seed} from '../src/api/fixtures.ts';
 import {ChatNavigation} from '../src/store/chat-navigation.ts';
+import {pushPreview} from '../src/api/email.ts';
 import {defaultView,type Account,type Session} from '../src/api/types.ts';
 import type {Storage} from '../src/storage/interface.ts';
 
@@ -34,7 +35,7 @@ function harness(accounts:Account[]=[],activeId:string|null=null){
  const modules:any={
  '../voice/files':{clearAccountAudio:async()=>{},discardStagedAudio:async()=>{}},
  '../i18n/engine.ts':{t:(key:string)=>key},'zustand':{create},'react-native':{Platform:{OS:'web'}},
- '../api/delivery-diagnostics':{newDeliveryFailure},'../api/reply-mode':{initialReplyMode:()=> 'public'},'../api/push-accounts':{},'../api/notification-policy':{},'../api/native-push':{},
+ '../api/delivery-diagnostics':{newDeliveryFailure},'../api/reply-mode':{initialReplyMode:()=> 'public'},'../api/email':{pushPreview},'../api/push-accounts':{},'../api/notification-policy':{},'../api/native-push':{},
  '../api/http':{HttpTransport:FailedHttp},'@react-native-async-storage/async-storage':{getItem:async()=>metadata,setItem:async(_:string,value:string)=>{metadata=value}},
  'expo-crypto':{},'expo-notifications':{},'../storage/disk':{openDisk:async(id:string)=>disk(id),deleteAccountDisk:async()=>{}},
  '../storage/vault':{readSession:async(id:string)=>sessions.get(id)||null,saveSession:async(id:string,s:Session)=>{sessions.set(id,s)},deleteSession:async(id:string)=>{sessions.delete(id)}},

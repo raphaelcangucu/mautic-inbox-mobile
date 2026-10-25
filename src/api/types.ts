@@ -1,17 +1,23 @@
 import {apiErrorText} from '../i18n/api-errors.ts';
-export type Channel = 'whatsapp' | 'instagram' | 'facebook' | 'webchat';
-export const channels: Record<Channel, string> = {whatsapp:'WhatsApp', instagram:'Instagram', facebook:'Facebook', webchat:'Web Chat'};
+export type Channel = 'whatsapp' | 'instagram' | 'facebook' | 'webchat' | 'email';
+export const channels: Record<Channel, string> = {whatsapp:'WhatsApp', instagram:'Instagram', facebook:'Facebook', webchat:'Web Chat', email:'E-mail'};
+/** Channels a saved view could know before the e-mail channel existed (app 1.0.x). */
+const legacyChannels: Channel[] = ['whatsapp','instagram','facebook','webchat'];
 export type Filter = 'Todas' | 'Não lidas' | 'Minhas' | 'Sem resposta' | 'Sem responsável' | 'IA' | 'Lidas' | 'Em atendimento' | 'Resolvidas' | 'Adiadas' | 'Spam';
 export const filters: Filter[] = ['Todas','Não lidas','Minhas','Sem resposta','Sem responsável','IA','Lidas','Em atendimento','Resolvidas','Adiadas','Spam'];
 export type Account = {id: string; origin: string; name: string; user: {id: number; name: string; email: string}; expired?: boolean; mode?:'mock'|'live'; config?:import('./http').MobileConfig};
 export type Session = {accessToken: string; refreshToken?: string; expiresAt: number};
-export type Attachment = {name: string; uri?: string; mime: string; size?: number; duration?: number; demoKey?: 'image'|'audio'|'video'|'document'};
+export type Attachment = {name: string; uri?: string; mime: string; size?: number; duration?: number; demoKey?: 'image'|'chart'|'audio'|'video'|'document'; available?: boolean};
+export type EmailAddress = {name?: string|null; address: string};
+// Timeline e-mail details (Inbox 1.9 contract). Text only: the app never receives raw HTML.
+export type EmailDetails = {from?: EmailAddress|null; to?: EmailAddress[]; cc?: EmailAddress[]; quoted?: string|null; has_html?: boolean; has_original?: boolean; auto_reply?: boolean; unverified_sender?: boolean; kind?: 'message'|'auto_reply'|'bounce'|'unreadable'|string};
 export type Agent = {key:string; name:string; status:'active'|'paused'; count:number};
 export type CannedResponse = {id:number;name:string;body:string};
 export type CommentContext = {postTitle:string;postBody:string;commentBody?:string;image?:string|null;permalink:string;relatedId?:number;canPrivate:boolean;canPublic?:boolean};
 export type Conversation = {
   id: number; conversation_id: number; version: number; channel: Channel; contact_name: string; preview: string;
-  avatar_url: string | null; contact_handle?:string|null; profile_url?:string|null; asset_avatar_url?:string|null; asset: {id: number; name: string;type?:string;phone?:string|null;handle?:string|null}; recipient: string;
+  avatar_url: string | null; contact_handle?:string|null; profile_url?:string|null; asset_avatar_url?:string|null; asset: {id: number; name: string;type?:string;phone?:string|null;handle?:string|null;address?:string|null}; recipient: string;
+  subject?: string|null; email?: {inbound: 'ok'|'delayed'|string; inbound_since: string|null}|null;
   assignee: {id: number; name: string} | null; lifecycle: 'open'|'snoozed'|'resolved'; needs_response: boolean;
   unread: number; human_takeover: boolean; last_message_at: string; updated_at: string;
   contact: {id: number; name: string; email: string; phone: string; social_profiles?:import('./social-profiles').SocialProfiles} | null;
@@ -24,13 +30,21 @@ export type Conversation = {
   // Explicit mobile/mock additions, not fields claimed to exist in InboxQuery.
   mobile: {avatarKey?: 'camila'|'ricardo'|'bia'|'lucas'; ai: boolean; window_open: boolean; attachments: boolean; audio?: boolean; social_visuals?:boolean};
 };
-export type Message = {kind: 'message'|'comment'|'outbound'|'note'|'event'|'automatic'; id: number | string; body: string; timestamp: string; direction?: 'inbound'|'outbound'; request_id?: string; status?: 'sending'|'uncertain'|'failed'|'pending'|'sent'|'delivered'|'read'; retryable?:boolean; failure?:string|null; failure_code?:string|null; cooldown_seconds?:number|null; retry_of?:string|null; attempt_count?:number; display_id?:number|string; author?: string; attachment?: Attachment; ai?:string; replyMode?:'public'|'private'};
+export type Message = {kind: 'message'|'comment'|'outbound'|'note'|'event'|'automatic'; id: number | string; body: string; timestamp: string; direction?: 'inbound'|'outbound'; request_id?: string; status?: 'sending'|'uncertain'|'failed'|'pending'|'sent'|'delivered'|'read'; retryable?:boolean; failure?:string|null; failure_code?:string|null; cooldown_seconds?:number|null; retry_of?:string|null; attempt_count?:number; display_id?:number|string; author?: string; attachment?: Attachment; attachments?: Attachment[]; ai?:string; replyMode?:'public'|'private'; subject?: string|null; email?: EmailDetails; event?: string; form?: {id:number;name:string}; answers?: {label:string;value:string}[]; campaign?: {id:number;name:string}};
 export type Page<T> = {items: T[]; next_cursor: string | null; complete?:boolean};
 export type Template = {id: number; name: string; language: string; category: string; supported: boolean; preview: string; fields: {key: string; token: string; component: string}[]; parts: {type: string; text: string}[]};
-export type Outbox = {request_id: string; conversationId: number; body: string; mode: 'reply'|'note'; timestamp: string; status: 'sending'|'uncertain'|'failed'; template_id?: number; variables?: Record<string,string>; attachment?: Attachment; replyMode?:'public'|'private'};
+export type Outbox = {request_id: string; conversationId: number; body: string; mode: 'reply'|'note'; timestamp: string; status: 'sending'|'uncertain'|'failed'; template_id?: number; variables?: Record<string,string>; attachment?: Attachment; replyMode?:'public'|'private'; subject?: string};
 export type Preferences = {remotePush?: boolean; sound: boolean; vibration: boolean; preview: boolean; quiet: boolean; grouped?:boolean; suppressOpen?:boolean};
-export type ViewState = {kind:'inbox'|'comments';filter: Filter; search: string; channels: Channel[]; listOffset: number; railOffset: number; chatOffsets: Record<number,number>; chatAnchors: Record<number,string>; lastChat?: number};
-export const defaultView = (): ViewState => ({kind:'inbox',filter:'Todas',search:'',channels:Object.keys(channels) as Channel[],listOffset:0,railOffset:0,chatOffsets:{},chatAnchors:{}});
+export type ViewState = {kind:'inbox'|'comments';filter: Filter; search: string; channels: Channel[]; listOffset: number; railOffset: number; chatOffsets: Record<number,number>; chatAnchors: Record<number,string>; lastChat?: number; channelsKnown?: Channel[]};
+export const defaultView = (): ViewState => ({kind:'inbox',filter:'Todas',search:'',channels:Object.keys(channels) as Channel[],listOffset:0,railOffset:0,chatOffsets:{},chatAnchors:{},channelsKnown:Object.keys(channels) as Channel[]});
+/** A saved filter only hides channels the operator chose to hide. Channels added in a later release start visible. */
+export function migrateView(saved?: Partial<ViewState>|null): ViewState {
+  const all=Object.keys(channels) as Channel[];const view={...defaultView(),...saved};
+  const known=Array.isArray(saved?.channelsKnown)?saved.channelsKnown:legacyChannels;
+  const kept=(Array.isArray(saved?.channels)?saved.channels:all).filter(c=>all.includes(c));
+  const added=all.filter(c=>!known.includes(c)&&!kept.includes(c));
+  return {...view,channels:kept.length?[...new Set([...kept,...added])]:all,channelsKnown:all};
+}
 export const messageKey = (m: Message) => `${m.kind}:${m.id}`;
 export function matches(c: Conversation, filter: Filter, userId: number) {
   if(filter==='Spam')return !!(c.moderation?.spam||c.moderation?.blockedAuthor);

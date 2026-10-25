@@ -1,0 +1,59 @@
+appId: com.distributionmachine.mauticinbox.demo
+name: E-mail 04 · reply with an edited subject and a survey form from the "+" menu
+---
+- tapOn:
+    id: email-reply
+- extendedWaitUntil:
+    visible:
+      id: email-compose
+    timeout: 10000
+- assertVisible:
+    id: email-compose-to
+- assertVisible: '.*joao\.ribeiro@example\.com.*'
+- assertVisible: '.*contato@macromarkets\.com.*'
+- assertVisible:
+    id: email-compose-subject
+    text: 'Re: Por que você ainda não depositou\?'
+- tapOn:
+    id: email-compose-subject
+# Down on a single-line field moves the cursor to the end, so the whole "Re:" subject is erased.
+- pressKey: Remote Dpad Down
+- eraseText: 60
+- inputText: 'Portabilidade de ativos'
+- tapOn:
+    id: email-compose-body
+- inputText: 'Oi Joao! Sim: fazemos a portabilidade dos ativos sem vender. Responda a pesquisa abaixo se puder.'
+- hideKeyboard
+- tapOn:
+    id: email-compose-plus
+- tapOn:
+    id: email-compose-form
+- extendedWaitUntil:
+    visible:
+      id: email-form-12
+    timeout: 10000
+- tapOn:
+    id: email-form-12
+- assertVisible: '.*\[\[form:12\]\].*'
+- takeScreenshot: 04-compose
+- tapOn:
+    id: email-compose-send
+- extendedWaitUntil:
+    visible:
+      id: email-thread-subject
+      text: 'Portabilidade de ativos'
+    timeout: 15000
+- assertNotVisible:
+    id: email-compose
+- extendedWaitUntil:
+    visible: '.*fazemos a portabilidade dos ativos sem vender.*'
+    timeout: 10000
+- assertVisible: 'Pesquisa: por que não depositou'
+- takeScreenshot: 04-reply-sent
+- tapOn:
+    id: email-thread-back
+- extendedWaitUntil:
+    visible:
+      id: conversation-subject-8
+      text: 'Portabilidade de ativos'
+    timeout: 10000

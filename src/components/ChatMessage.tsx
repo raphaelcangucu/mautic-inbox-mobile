@@ -1,4 +1,5 @@
 import {canRetryMessage} from '../api/message-retry';
+import {saveEmailShortcut} from '../api/email';
 import {formatTime,formatDay} from '../i18n/engine';
 import {t} from '../i18n/engine';
 import React from 'react';
@@ -16,7 +17,7 @@ export function ChatMessage({message:m,previous,comment,channel,whatsapp=false,o
  const c=useTheme();const note=m.kind==='note';const out=m.kind==='outbound'||m.direction==='outbound';
  const grouped=groupChatMessages(previous,m);const day=!previous||!sameChatDay(previous,m);
  const time=formatTime(m.timestamp);
- const email=m.body.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0];
+ const email=saveEmailShortcut(m.body,channel);
  const attention=m.status==='failed'||m.status==='uncertain';
  const statusIcon=m.status==='sending'||m.status==='pending'?'clock':attention?'refresh':m.status==='read'||m.status==='delivered'?'checks':'check';
  return <View testID={'timeline-'+m.kind+'-'+m.id} style={{paddingTop:grouped?2:8}}>

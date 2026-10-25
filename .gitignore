@@ -93,5 +93,10 @@ google-services.json
 /e2e/flows/*
 !/e2e/flows/live-without-demo.yaml
 
+# E-mail channel (1.1.0): demo-mode Maestro flows and their emulator runner
+!/e2e/flows/email/
+# ...and the live flows against a local Mautic bench (e2e build only)
+!/e2e/flows/email-live/
+
 # Reusable read-only swipe navigation validation
 !/e2e/flows/ios-swipe-back.yaml

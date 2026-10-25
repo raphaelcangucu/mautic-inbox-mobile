@@ -2,6 +2,7 @@ import {t} from '../i18n/engine.ts';
 import {clearAccountAudio,discardStagedAudio} from '../voice/files';
 import {newDeliveryFailure} from '../api/delivery-diagnostics';
 import {initialReplyMode} from '../api/reply-mode';
+import {pushPreview} from '../api/email';
 import {syncPushAccounts} from '../api/push-accounts';
 import {create} from 'zustand';
 import {Platform} from 'react-native';
@@ -48,7 +49,7 @@ type State={
   syncing:boolean;refreshingList:boolean;offline:boolean;slow:boolean;error:string;toast:string;lastSync:number;listComplete:boolean;preferences:Preferences;pushStatus:PushStatus|null;pushBusy:boolean;refreshPush:()=>Promise<void>;enablePush:(enabled:boolean)=>Promise<void>;testPush:()=>Promise<void>;unseen:number;performance:number[];
   boot:()=>Promise<void>;switchAccount:(a:Account)=>Promise<void>;connect:(config:MobileConfig,result:LoginResult,name:string)=>Promise<void>;logout:(remove?:boolean,localOnly?:boolean)=>Promise<void>;
   navigate:(r:Route)=>void;back:()=>void;sync:(force?:boolean,showRefresh?:boolean)=>Promise<void>;moreConversations:()=>Promise<void>;openChat:(id:number)=>Promise<void>;older:()=>Promise<void>;read:()=>Promise<void>;
-  setView:(patch:Partial<ViewState>)=>void;setDraft:(text:string)=>void;setMode:(mode:'reply'|'note')=>Promise<void>;send:(template?:Template,variables?:Record<string,string>)=>Promise<boolean>;
+  setView:(patch:Partial<ViewState>)=>void;setDraft:(text:string)=>void;setMode:(mode:'reply'|'note')=>Promise<void>;send:(template?:Template,variables?:Record<string,string>,subject?:string)=>Promise<boolean>;
   retryMessage:(message:Message)=>Promise<boolean>;transition:(action:string,payload?:Record<string,unknown>)=>Promise<boolean>;feature:(endpoint:string,payload:Record<string,unknown>)=>Promise<boolean>;themeToggle:()=>void;toggleOffline:()=>void;toggleSlow:()=>void;inject:()=>Promise<void>;toggleWindow:()=>Promise<void>;setPreferences:(patch:Partial<Preferences>)=>void;notify:(message:string)=>void;
 };
 export const useApp=create<State>((set,get)=>({
@@ -83,7 +84,7 @@ export const useApp=create<State>((set,get)=>({
           const identifier='inbox-'+s.active.id+'-'+(s.preferences.grouped!==false?notification.state_id:notification.id);const channelId='inbox-'+s.active.id+'-'+Number(s.preferences.sound)+Number(s.preferences.vibration);
           if(Platform.OS==='android')await Notifications.setNotificationChannelAsync(channelId,{name:s.active.name,importance:Notifications.AndroidImportance.HIGH,sound:s.preferences.sound?'default':null,enableVibrate:s.preferences.vibration});
           if(s.preferences.grouped!==false)await Notifications.dismissNotificationAsync(identifier);
-          await Notifications.scheduleNotificationAsync({identifier,content:{title:s.active.name+' · '+conversation.contact_name,body:s.preferences.preview?conversation.preview:t("push.newMessage"),data,sound:s.preferences.sound&&!s.preferences.quiet},trigger:Platform.OS==='android'?{channelId}:null});
+          await Notifications.scheduleNotificationAsync({identifier,content:{title:s.active.name+' · '+conversation.contact_name,body:s.preferences.preview?pushPreview(conversation):t("push.newMessage"),data,sound:s.preferences.sound&&!s.preferences.quiet},trigger:Platform.OS==='android'?{channelId}:null});
         }
         if(epoch===generation)await s.repo.disk.put('notification:cursor',batch.notification_cursor);
       }
@@ -105,7 +106,7 @@ export const useApp=create<State>((set,get)=>({
   setView:patch=>{const view={...get().view,...patch};set({view});void get().repo?.disk.put('ui:view',view)},
   setDraft:text=>{chatNavigation.editedDraft();set({draft:text});const s=get();if(!s.repo)return;const key='draft:'+s.conversationId+':'+s.mode;draftFlush=()=>s.repo!.disk.put(key,text);if(draftTimer)clearTimeout(draftTimer);draftTimer=setTimeout(()=>{void flushDraft()},120)},
   setMode:async mode=>{const s=get();if(!s.repo)return;const epoch=generation;await chatNavigation.changeMode(s.conversationId,mode,s.repo,{flushDraft,valid:()=>epoch===generation&&get().repo===s.repo&&get().route==='chat'&&get().conversationId===s.conversationId,apply:draft=>set({mode,draft,attachment:null})})},
-  send:async(template,variables)=>{
+  send:async(template,variables,subject)=>{
     const s=get();const epoch=generation;
     if(!s.repo||s.offline){get().notify(t("store.offlineDraft"));return false}
     const key=s.active?.id+':'+s.conversationId+':'+s.mode;
@@ -118,8 +119,8 @@ export const useApp=create<State>((set,get)=>({
       let body=s.draft.trim();if(template)body=template.preview.replace(/\{\{(\w+)\}\}/g,(_,token)=>variables?.['BODY:'+token]||'');
       if(!body&&!s.attachment)return false;
       const id=Crypto.randomUUID().replace(/-/g,'');
-      const entry={request_id:id,conversationId:s.conversationId,body:body||s.attachment!.name,mode:s.mode,timestamp:new Date().toISOString(),status:'sending' as const,...(template?{template_id:template.id,variables}:{}),...(s.attachment?{attachment:s.attachment}:{}),replyMode:s.replyMode};
-      const local:Message={kind:s.mode==='note'?'note':'outbound',id:'local-'+id,request_id:id,body:entry.body,timestamp:entry.timestamp,status:'sending',direction:'outbound',attachment:s.attachment||undefined};
+      const entry={request_id:id,conversationId:s.conversationId,body:body||s.attachment!.name,mode:s.mode,timestamp:new Date().toISOString(),status:'sending' as const,...(template?{template_id:template.id,variables}:{}),...(s.attachment?{attachment:s.attachment}:{}),replyMode:s.replyMode,...(s.mode==='reply'&&subject?.trim()?{subject:subject.trim()}:{})};
+      const local:Message={kind:s.mode==='note'?'note':'outbound',id:'local-'+id,request_id:id,body:entry.body,timestamp:entry.timestamp,status:'sending',direction:'outbound',attachment:s.attachment||undefined,...(entry.subject?{subject:entry.subject}:{})};
       // Clear the captured composer synchronously, before any network or disk wait.
       set({draft:'',attachment:null,messages:{...get().messages,[s.conversationId]:[...(get().messages[s.conversationId]||[]),local]}});
       const clearing=s.repo.disk.put('draft:'+s.conversationId+':'+s.mode,'').catch(()=>{});

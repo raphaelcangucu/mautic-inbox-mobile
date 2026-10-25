@@ -1,0 +1,25 @@
+appId: com.distributionmachine.mauticinbox.demo
+name: E-mail 00 · fresh install opens Connections in Portuguese, without demo data
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: tab-accounts
+    timeout: 60000
+- assertNotVisible:
+    id: mock-mode-banner
+- assertNotVisible:
+    id: account-macro-7
+# The demo texts are Brazilian Portuguese; pin the app language (an in-app preference, not a device setting).
+- tapOn: 'Preferências e tema|Preferences and theme|Preferencias y tema'
+- tapOn:
+    id: language-selector
+- tapOn:
+    id: language-pt-BR
+- tapOn: 'Voltar|Back|Volver'
+- tapOn:
+    id: tab-accounts
+- extendedWaitUntil:
+    visible: 'Conexões'
+    timeout: 10000

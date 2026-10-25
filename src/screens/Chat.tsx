@@ -16,6 +16,7 @@ import {canModerateConversation} from '../api/moderation';
 import {ChatMessage} from '../components/ChatMessage';
 import {visibleChatMessages} from '../components/chat-timeline';
 import {useSwipeBack} from '../hooks/useSwipeBack';
+import {EmailThread} from './EmailThread';
 import {Linking,Alert,AppState,Share,Platform} from 'react-native';
 import React,{useEffect,useRef,useState,useMemo} from 'react';
 import {View,FlatList,TextInput,ScrollView,Keyboard,Animated} from 'react-native';
@@ -29,7 +30,7 @@ import {useApp} from '../store/app';
 import {useTheme,font} from '../theme';
 import {T,Tap,Icon,Avatar,AssetAvatar,Button,Field,Card} from '../components/ui';
 import {channels,messageKey,type Message,type Template} from '../api/types';
-export function Chat(){
+function ChatScreen(){
  const [qrRequest,setQrRequest]=useState(0);const [qrState,setQrState]=useState<QrPairing|null>(null);const qrProbe=useRef(0);
  const c=useTheme();const s=useApp();const conversation=s.conversations.find(x=>x.id===s.conversationId);const list=useRef<FlatList<Message>>(null);const atEnd=useRef(true);const restoring=useRef(true);const messages=s.messages[s.conversationId]||[];const visibleMessages=useMemo(()=>visibleChatMessages(messages),[messages]);const reversed=useMemo(()=>[...visibleMessages].reverse(),[visibleMessages]);const [menu,setMenu]=useState(false);const [contextSheet,setContextSheet]=useState(false);const [panel,setPanel]=useState<Panel>(null);const [email,setEmail]=useState('');const [templates,setTemplates]=useState<Template[]>([]);const [templateSheet,setTemplateSheet]=useState(false);const [templateReason,setTemplateReason]=useState('');const [selected,setSelected]=useState<Template|null>(null);const [variables,setVariables]=useState<Record<string,string>>({});const [attachmentSheet,setAttachmentSheet]=useState(false);
  const [actionMessage,setActionMessage]=useState<Message|null>(null);const [favoriteRecords,setFavoriteRecords]=useState<MessageFavorite[]>([]);const [favoriteSheet,setFavoriteSheet]=useState(false);const [favoriteMessages,setFavoriteMessages]=useState<Message[]>([]);
@@ -148,3 +149,5 @@ export function Chat(){
  <OverlayModal visible={templateSheet} onClose={()=>setTemplateSheet(false)}><View style={{flex:1,justifyContent:'flex-end'}}><Tap label={t("chat.closeTemplates")} onPress={()=>setTemplateSheet(false)} style={{flex:1}}><View/></Tap><View style={{maxHeight:'85%',backgroundColor:c.paper,padding:24,paddingBottom:40,borderTopLeftRadius:24,borderTopRightRadius:24}}><ScrollView contentContainerStyle={{gap:14}}><T bold size={22}>{selected?t("chat.templatePreview"):t("chat.reactivate")}</T><T size={12} muted>{s.active?.mode==='mock'?t("chat.templatesMock"):t("chat.templatesApproved")} · {s.active?.name} · {conversation.contact_name}</T>{!selected&&!templates.length&&<T size={13} muted>{templateReason||t("chat.noTemplates")}</T>}{selected?<><Card><T size={12} color={c.blue}>{selected.name} · {selected.language}</T><T>{selected.preview.replace(/\{\{(\w+)\}\}/g,(_,token)=>variables['BODY:'+token]||'{{'+token+'}}')}</T></Card>{selected.fields.map(field=><Field key={field.key} label={field.token==='1'?t("chat.contactName"):t("chat.subject")} value={variables[field.key]||''} onChange={value=>setVariables({...variables,[field.key]:value})}/>)}<T size={12} muted>{t("chat.templateHint")}</T><Button label={s.active?.mode==='mock'?t("chat.sendTemplateMock"):t("chat.sendTemplate")} disabled={selected.fields.some(f=>!variables[f.key]?.trim())||s.offline} onPress={()=>{void s.send(selected,variables).then(ok=>{if(ok)setTemplateSheet(false)})}}/><Button quiet label={t("chat.otherTemplate")} onPress={()=>setSelected(null)}/></>:templates.map(template=><Tap key={template.id} disabled={!template.supported} label={template.name} onPress={()=>{setSelected(template);setVariables({'BODY:1':conversation.contact_name.split(' ')[0],'BODY:2':t("chat.report")})}}><Card><T bold>{template.name}</T><T size={11} color={c.blue}>{template.category} · {template.language} · {s.active?.mode==='mock'?t("chat.approvedMock"):t("chat.approved")}</T><T size={13} muted>{template.preview}</T>{!template.supported&&<T size={11} color={c.warn}>{t("chat.formatUnsupported")}</T>}</Card></Tap>)}</ScrollView></View></View></OverlayModal>
  </Animated.View>;
 }
+/** E-mail conversations use the Gmail-style thread; every other channel keeps the chat. */
+export function Chat(){const email=useApp(st=>st.conversations.find(x=>x.id===st.conversationId)?.channel==='email');return email?<EmailThread/>:<ChatScreen/>}

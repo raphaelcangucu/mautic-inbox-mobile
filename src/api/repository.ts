@@ -3,7 +3,7 @@ import {AccessCache} from './access-cache.ts';
 import {canRetryMessage} from './message-retry.ts';
 import {t} from '../i18n/engine.ts';
 import type {Storage} from '../storage/interface.ts';
-import {ApiError, messageKey, defaultView, type Conversation, type Message, type Outbox, type Page, type Transport, type ViewState} from './types.ts';
+import {ApiError, messageKey, migrateView, type Conversation, type Message, type Outbox, type Page, type Transport, type ViewState} from './types.ts';
 export class InboxRepository {
   private work=new Set<Promise<unknown>>();
   private retries=new Map<string,Promise<'registered'|'already_registered'>>();
@@ -23,8 +23,10 @@ export class InboxRepository {
   async cachedList(){const all=await this.disk.scan<Conversation>('conversation:');const ids=await this.disk.get<number[]>('sync:list-ids');return (ids?all.filter(c=>ids.includes(c.id)):all).sort((a,b)=>b.last_message_at.localeCompare(a.last_message_at)||b.id-a.id)}
   async cachedMessages(id:number){return (await this.disk.scan<Message>('message:'+id+':')).sort((a,b)=>a.timestamp.localeCompare(b.timestamp))}
   async saveConversations(items:Conversation[]){for(const c of items)await this.disk.put('conversation:'+c.id,c)}
+  /** A conversation started on this device belongs to the cached list before the next full list sync. */
+  async adopt(c:Conversation){await this.saveConversations([c]);const ids=await this.disk.get<number[]>('sync:list-ids');if(ids&&!ids.includes(c.id))await this.disk.put('sync:list-ids',[...ids,c.id])}
   async saveMessages(id:number,items:Message[]){for(const m of items)await this.disk.put('message:'+id+':'+messageKey(m),m);await this.favorites.reconcile(id,items)}
-  async view(){return {...defaultView(),...await this.disk.get<ViewState>('ui:view')}}
+  async view(){return migrateView(await this.disk.get<ViewState>('ui:view'))}
   private async listBatch(cursor:string|null,limit:number){
     const items:Conversation[]=[];const seen=new Set<string>();let complete=true;
     do{if(cursor){if(seen.has(cursor))throw new ApiError(502,'cursor_loop','A API repetiu uma página de conversas.');seen.add(cursor)}
@@ -45,10 +47,11 @@ export class InboxRepository {
   async transition(id:number,version:number,action:string,payload:Record<string,unknown>={}){const c=await this.api.request<Conversation>({method:'POST',path:`/inbox/api/conversations/${id}/${action==='take'?'take':'state'}`,body:action==='take'?{version}:{version,action,...payload}});await this.saveConversations([c]);return c}
   async send(entry:Outbox){
     await this.disk.put('outbox:'+entry.request_id,entry);
-    const optimistic:Message={kind:entry.mode==='note'?'note':'outbound',id:'local-'+entry.request_id,body:entry.body,request_id:entry.request_id,timestamp:entry.timestamp,direction:'outbound',status:'sending',attachment:entry.attachment};
+    const optimistic:Message={kind:entry.mode==='note'?'note':'outbound',id:'local-'+entry.request_id,body:entry.body,request_id:entry.request_id,timestamp:entry.timestamp,direction:'outbound',status:'sending',attachment:entry.attachment,...(entry.mode==='reply'&&entry.subject?{subject:entry.subject}:{})};
     await this.saveMessages(entry.conversationId,[optimistic]);
     try{
-      const result=await this.api.request<{item?:Message;summary?:Conversation;id?:number}>({method:'POST',path:`/inbox/api/conversations/${entry.conversationId}/${entry.mode}`,body:{body:entry.body,...(entry.mode==='reply'?{request_id:entry.request_id}:{}),...(entry.template_id?{template_id:entry.template_id,variables:entry.variables}:{}),...(entry.attachment?{attachment:entry.attachment}:{}),...(entry.replyMode?{reply_mode:entry.replyMode}:{})}});
+      // `subject` is optional and only meaningful for e-mail replies (Inbox 1.9).
+      const result=await this.api.request<{item?:Message;summary?:Conversation;id?:number}>({method:'POST',path:`/inbox/api/conversations/${entry.conversationId}/${entry.mode}`,body:{body:entry.body,...(entry.mode==='reply'?{request_id:entry.request_id}:{}),...(entry.mode==='reply'&&entry.subject?.trim()?{subject:entry.subject.trim()}:{}),...(entry.template_id?{template_id:entry.template_id,variables:entry.variables}:{}),...(entry.attachment?{attachment:entry.attachment}:{}),...(entry.replyMode?{reply_mode:entry.replyMode}:{})}});
       // Existing note response supplies id/saved; item is an explicitly documented mock addition.
       const item=result.item||{...optimistic,id:result.id!,status:undefined};
       await this.saveMessages(entry.conversationId,[item]);await this.disk.remove('message:'+entry.conversationId+':'+messageKey(optimistic));await this.disk.remove('outbox:'+entry.request_id);if(result.summary)await this.saveConversations([result.summary]);return result;

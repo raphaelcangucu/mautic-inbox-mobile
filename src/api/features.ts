@@ -1,14 +1,17 @@
 import {ApiError,type Account,type ApiRequest,type CannedResponse,type Conversation,type Message} from './types.ts';
-import {seed} from './fixtures.ts';
-export type Remote={conversations:Conversation[];messages:Record<number,Message[]>;sequence:number;schema?:number;canned?:CannedResponse[];catalogue?:{campaign:{id:number;name:string}[];segment:{id:number;name:string}[]}};
+import {seed,type DemoContact,type DemoEmailAccount} from './fixtures.ts';
+import {emailFeature,upgradeEmail} from './mock-email.ts';
+export type Remote={conversations:Conversation[];messages:Record<number,Message[]>;sequence:number;schema?:number;canned?:CannedResponse[];catalogue?:{campaign:{id:number;name:string}[];segment:{id:number;name:string}[]};emailAccounts?:DemoEmailAccount[];contacts?:DemoContact[]};
 export function upgrade(data:Remote,account:Account){
-  if(data.schema!==2){const fresh=seed(account);for(const c of fresh.conversations){const old=data.conversations.find(x=>x.id===c.id);if(old){old.kind||='inbox';old.moderation||=c.moderation;old.agent??=c.agent; if(c.id===2)data.messages[2].push(...fresh.messages[2].filter(x=>x.attachment?.demoKey));}else{data.conversations.push(c);data.messages[c.id]=fresh.messages[c.id];}}data.schema=2;}
+  if(data.schema!==2&&data.schema!==3){const fresh=seed(account);for(const c of fresh.conversations){const old=data.conversations.find(x=>x.id===c.id);if(old){old.kind||='inbox';old.moderation||=c.moderation;old.agent??=c.agent; if(c.id===2)data.messages[2].push(...fresh.messages[2].filter(x=>x.attachment?.demoKey));}else{data.conversations.push(c);data.messages[c.id]=fresh.messages[c.id];}}data.schema=2;}
+  upgradeEmail(data,account);
   const pdf=data.messages[1]?.find(x=>x.attachment?.name==='Trecho do relatório.pdf');if(pdf?.attachment)pdf.attachment.demoKey='document';
   data.canned??=[{id:1,name:'Boas-vindas',body:'Olá! Vou ajudar você com sua solicitação.'},{id:2,name:'Enviar relatório',body:'O relatório está disponível. Qual rodada você quer consultar?'},{id:3,name:'Prazo de retorno',body:'Vou verificar com a equipe e retorno assim que tiver uma atualização.'}];
   for(const c of data.conversations)if(c.lifecycle==='snoozed'&&c.snoozed_until&&Date.parse(c.snoozed_until)<=Date.now()){c.lifecycle='open';c.snoozed_until=null;c.needs_response=true;c.version++;}
 }
 export function featureRequest(data:Remote,a:Account,r:ApiRequest):unknown|undefined{
   const b=r.body||{};
+  const email=emailFeature(data,a,r);if(email!==undefined)return email;
   if(r.path==='/inbox/mobile/crm-options'&&r.method==='GET'){
     const kind=String(r.query?.kind||'');if(!['campaign','segment'].includes(kind))throw new ApiError(422,'invalid_kind','Tipo de busca inválido.');
     const defaults={campaign:[{id:1,name:'Relatório da rodada'},{id:2,name:'Boas-vindas'}],segment:[{id:1,name:'Interessados em futebol'},{id:2,name:'Atendimento ativo'}]};

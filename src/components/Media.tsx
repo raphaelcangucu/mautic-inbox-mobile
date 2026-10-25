@@ -13,7 +13,8 @@ import {useApp} from '../store/app';
 import {useTheme} from '../theme';
 import {Button,T,Tap} from './ui';
 import {Sheet} from './Sheet';
-const media={image:require('../../assets/avatars/ricardo.png'),audio:require('../../assets/media/demo_audio.wav'),video:require('../../assets/media/demo_video.mp4'),document:require('../../assets/media/demo_document.pdf')};
+export const demoMedia={image:require('../../assets/avatars/ricardo.png'),chart:require('../../assets/media/demo_chart.png'),audio:require('../../assets/media/demo_audio.wav'),video:require('../../assets/media/demo_video.mp4'),document:require('../../assets/media/demo_document.pdf')};
+const media=demoMedia;
 function AudioPreview({source,onError}:{source:any;onError:()=>void}){const player=useAudioPlayer(source);const status=useAudioPlayerStatus(player);async function toggle(){try{if(status.playing)player.pause();else{if(status.didJustFinish)await player.seekTo(0);player.play()}}catch{onError()}}return <View style={{gap:6}}><Button quiet label={status.playing?t("media.pauseAudio"):t("media.playAudio")} onPress={()=>void toggle()}/><T size={10} muted>{Math.floor(status.currentTime)}s / {Math.floor(status.duration)}s</T></View>}
 function VideoPreview({source,onError}:{source:any;onError:()=>void}){const player=useVideoPlayer(source);const playing=useEvent(player,'playingChange',{isPlaying:player.playing});const status=useEvent(player,'statusChange',{status:player.status});useEffect(()=>{if(status.status==='error')onError()},[status.status]);return <View style={{gap:7}}><VideoView player={player} nativeControls style={{width:'100%',height:150,borderRadius:10}}/><Button quiet label={playing.isPlaying?t("media.pauseVideo"):t("media.playVideo")} onPress={()=>{try{if(player.playing)player.pause();else{if(player.currentTime>=player.duration-.05)player.currentTime=0;player.play()}}catch{onError()}}}/></View>}
 export function Media({attachment:a}:{attachment:Attachment}){
