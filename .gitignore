@@ -47,6 +47,9 @@ google-services.json
 /e2e/
 /docs/*
 !/docs/ASSETS-PUBLICACAO-PROXIMAS-VERSOES.md
+# Approved designs and handovers are kept for the next machine.
+!/docs/design/
+!/docs/handover/
 /fastlane/screenshots/
 /fastlane/android-metadata/*/images/
 /fastlane/product-assets-ios/reviewed-*.json
