@@ -1,0 +1,172 @@
+appId: com.distributionmachine.mauticinbox.demo
+name: Novo layout 1.2.0 - passeio pelas telas novas para o video
+# Precisa de um build feito com EXPO_PUBLIC_MAUTIC_E2E_DEMO=1, que entra na conta mockada
+# sem o gesto de balancar: nenhum simulador iOS injeta aceleracao.
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: conversation-8
+    timeout: 40000
+
+# Lista: titulo grande, abas sublinhadas, chips rolaveis, linhas sem cartao e selo do canal.
+- takeScreenshot: 10-lista
+- scroll
+- scrollUntilVisible:
+    element:
+      id: conversation-8
+    direction: UP
+
+# Folha unica de filtros: chips de atendimento, canais com disco colorido, "Mostrar N conversas".
+- tapOn:
+    id: open-filters
+- extendedWaitUntil:
+    visible:
+      id: channel-whatsapp
+    timeout: 15000
+- takeScreenshot: 11-folha-de-filtros
+- tapOn:
+    id: channel-messenger
+    optional: true
+- tapOn:
+    id: channel-messenger
+    optional: true
+- tapOn:
+    id: sheet-close
+
+# Abas Conversas / Comentarios com a barra de 3 px.
+- tapOn:
+    id: kind-comments
+- takeScreenshot: 12-comentarios
+- tapOn:
+    id: kind-inbox
+
+# Busca: tela propria, Conversas e Contatos no Mautic, com o trecho destacado.
+- tapOn:
+    id: open-search
+- extendedWaitUntil:
+    visible:
+      id: search-conversations
+    timeout: 15000
+- tapOn:
+    id: search-conversations
+- inputText: joao
+- takeScreenshot: 13-busca
+- tapOn:
+    id: scope-conversations
+    optional: true
+- takeScreenshot: 14-busca-so-conversas
+- tapOn:
+    id: search-back
+
+# Arrastar para o lado revela Para mim e Resolver sem abrir a conversa.
+- extendedWaitUntil:
+    visible:
+      id: conversation-8
+    timeout: 15000
+- swipe:
+    from:
+      id: conversation-8
+    direction: LEFT
+    duration: 500
+- takeScreenshot: 15-arrastar-acoes
+- swipe:
+    from:
+      id: conversation-8
+    direction: RIGHT
+    duration: 500
+
+# Thread de e-mail: barra so com icones, assunto como titulo grande, acoes em pilula.
+- tapOn:
+    id: conversation-8
+- extendedWaitUntil:
+    visible:
+      id: email-thread-subject
+    timeout: 20000
+- takeScreenshot: 16-thread-email
+- scroll
+- takeScreenshot: 17-thread-email-fim
+- tapOn:
+    id: email-thread-back
+
+# Acoes da conversa: blocos rapidos no topo da folha.
+- extendedWaitUntil:
+    visible:
+      id: conversation-8
+    timeout: 15000
+- tapOn:
+    id: conversation-8
+- extendedWaitUntil:
+    visible:
+      id: chat-actions
+    timeout: 20000
+- tapOn:
+    id: chat-actions
+- extendedWaitUntil:
+    visible:
+      id: quick-resolve
+    timeout: 15000
+- takeScreenshot: 18-acoes-rapidas
+- tapOn:
+    id: sheet-close
+- tapOn:
+    id: email-thread-back
+    optional: true
+
+# FAB "Nova conversa" leva aos contatos, que agora sao linhas com avatar.
+- extendedWaitUntil:
+    visible:
+      id: new-conversation
+    timeout: 20000
+- tapOn:
+    id: new-conversation
+- extendedWaitUntil:
+    visible:
+      id: search-crm-contact
+    timeout: 20000
+- takeScreenshot: 19-contatos
+
+# Central de avisos: agrupada por dia, icone do canal, nao lidas destacadas.
+- tapOn:
+    id: open-notifications
+- extendedWaitUntil:
+    visible:
+      id: notifications-preferences
+    timeout: 20000
+- takeScreenshot: 20-notificacoes
+- tapOn:
+    id: header-back
+
+# Ficha do contato: heroi grande, etiquetas e blocos de acao.
+- extendedWaitUntil:
+    visible:
+      id: conversation-8
+    timeout: 20000
+- tapOn:
+    id: conversation-8
+- extendedWaitUntil:
+    visible:
+      id: chat-context
+    timeout: 20000
+- tapOn:
+    id: chat-context
+- extendedWaitUntil:
+    visible:
+      id: open-contact
+    timeout: 15000
+- tapOn:
+    id: open-contact
+- takeScreenshot: 23-contato
+- tapOn:
+    id: header-back
+
+# Assistente e Conta fecham o passeio pela barra inferior nova.
+- tapOn:
+    id: tab-assistant
+- takeScreenshot: 22-assistente
+- tapOn:
+    id: tab-accounts
+- takeScreenshot: 21-conta
+- tapOn:
+    id: tab-inbox
+- takeScreenshot: 24-volta-lista

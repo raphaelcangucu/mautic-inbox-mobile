@@ -1,0 +1,121 @@
+appId: com.distributionmachine.mauticinbox.demo
+name: Acoes novas 1.2.0 - exercita o que o layout acrescentou
+# Precisa de um build com EXPO_PUBLIC_MAUTIC_E2E_DEMO=1: as acoes aqui MUDAM estado da conversa
+# (assumir, adiar, resolver, desmarcar spam), entao rodam na conta mockada, nunca na producao.
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: conversation-8
+    timeout: 40000
+- assertVisible:
+    id: mock-mode-banner
+- takeScreenshot: 40-partida
+
+# Arrastar para o lado e assumir a conversa pela propria lista.
+- swipe:
+    from:
+      id: conversation-8
+    direction: LEFT
+    duration: 500
+- takeScreenshot: 41-arrastar
+- tapOn:
+    id: swipe-take-8
+- extendedWaitUntil:
+    visible:
+      id: conversation-8
+    timeout: 20000
+- takeScreenshot: 42-assumida
+
+# Blocos de acao rapida e os chips de adiar, agindo de verdade.
+- tapOn:
+    id: conversation-8
+- extendedWaitUntil:
+    visible:
+      id: chat-actions
+    timeout: 25000
+- tapOn:
+    id: chat-actions
+- extendedWaitUntil:
+    visible:
+      id: quick-resolve
+    timeout: 15000
+- takeScreenshot: 43-acoes
+- tapOn:
+    id: snooze-tomorrow
+- takeScreenshot: 44-adiada
+- tapOn:
+    id: sheet-close
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: composer
+    timeout: 20000
+    optional: true
+- takeScreenshot: 45-compositor
+- tapOn:
+    id: email-thread-back
+    optional: true
+- tapOn:
+    id: chat-back
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: bottom-tabs
+    timeout: 20000
+
+# Comentarios: cartao de spam, agrupamento e o "Nao e spam" desfazendo a triagem.
+- tapOn:
+    id: kind-comments
+- extendedWaitUntil:
+    visible:
+      id: bottom-tabs
+    timeout: 20000
+- takeScreenshot: 46-comentarios
+- tapOn:
+    id: spam-batch-card
+    optional: true
+- takeScreenshot: 47-revisao-spam
+- tapOn:
+    id: sheet-close
+    optional: true
+- tapOn:
+    id: kind-inbox
+
+# Tema de tres estados, trocando de verdade.
+- tapOn:
+    id: tab-accounts
+- extendedWaitUntil:
+    visible:
+      id: availability-switch
+    timeout: 25000
+- takeScreenshot: 47b-disponivel
+- tapOn:
+    id: availability-switch
+- takeScreenshot: 47c-indisponivel
+- tapOn:
+    id: availability-switch
+- scrollUntilVisible:
+    element:
+      id: account-preferences
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: account-preferences
+- extendedWaitUntil:
+    visible:
+      id: theme-dark
+    timeout: 20000
+- tapOn:
+    id: theme-dark
+- takeScreenshot: 48-tema-escuro
+- tapOn:
+    id: theme-system
+- takeScreenshot: 49-tema-sistema
+- tapOn:
+    id: theme-light
+- tapOn:
+    id: header-back
+- tapOn:
+    id: tab-inbox
+- takeScreenshot: 50-fim
