@@ -89,6 +89,26 @@ O build de e2e usa `EXPO_PUBLIC_MAUTIC_E2E_DEMO=1` para abrir a conta mockada se
 balançar, que nenhum simulador iOS injeta. Sem a variável nada muda, e o build de loja continua
 exigindo o gesto.
 
+## Conferência da aba Comentários contra o PNG
+
+Feita sobre a captura real do fluxo (`artifacts/qa/acoes-novas/46-comentarios.png`), não de memória.
+
+| Item do `Comentarios.png` | Estado |
+|---|---|
+| Abas sublinhadas com contador | feito |
+| Chips de filtro roláveis | feito |
+| Cabeçalho por publicação agrupando os comentários | feito |
+| Linhas sem cartão, avatar redondo com selo do canal | feito |
+| Ações na linha: Responder, Mensagem privada | feito |
+| "Não é spam" na linha | feito; só aparece onde há marca de spam |
+| Cartão do assistente com os prováveis spam | feito; só aparece quando há algum |
+| Miniatura da publicação no cabeçalho | feito; cai num ícone quando o post não tem imagem |
+| "Ocultar" na linha | fora: a API só oculta no Instagram, e sozinho desequilibraria o par com "Não é spam" |
+
+A conferência achou um defeito que a implementação tinha introduzido: o título da publicação
+aparecia no cabeçalho do grupo **e** repetido no rodapé de cada comentário. Corrigido em
+`27b72d1`.
+
 ## Pendente, aguardando decisão
 
 - **Endpoint de disponibilidade no servidor.** A tela Conta já tem o cartão de perfil com o
