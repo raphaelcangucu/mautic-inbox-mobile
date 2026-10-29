@@ -11,5 +11,5 @@ export const font={regular:'Manrope',semibold:'Manrope600',bold:'Manrope700',hea
 export const channelColor={whatsapp:'#1E8E4E',instagram:'#C1356F',facebook:'#2F6FDB',webchat:'#4A5568',email:'#B4590F'} as const;
 // Fundo do avatar sem foto, como nos PNGs: um tom pálido do canal, com as iniciais na cor cheia.
 export const channelTint={whatsapp:'#DDF0E4',instagram:'#FADCE8',facebook:'#DEE8FB',webchat:'#E4E7EC',email:'#FBEADF'} as const;
-export const type={tabTitle:{size:30,line:36,tracking:-.5},screenTitle:{size:21,line:28},rowName:{size:16,line:22},body:{size:15,line:22},secondary:{size:13,line:18},meta:{size:11,line:14},sectionLabel:{size:13,line:18}} as const;
+export const scale={tabTitle:{size:30,line:36,tracking:-.5},screenTitle:{size:21,line:28},rowName:{size:16,line:22},body:{size:15,line:22},secondary:{size:13,line:18},meta:{size:11,line:14},sectionLabel:{size:13,line:18}} as const;
 export const radius={chip:10,button:14,fab:16,pill:20,card:17,sheet:28,bubble:18,tail:6} as const;
