@@ -36,7 +36,7 @@ function harness(accounts:Account[]=[],activeId:string|null=null){
  '../voice/files':{clearAccountAudio:async()=>{},discardStagedAudio:async()=>{}},
  '../i18n/engine.ts':{t:(key:string)=>key},'zustand':{create},'react-native':{Platform:{OS:'web'}},
  '../api/delivery-diagnostics':{newDeliveryFailure},'../api/reply-mode':{initialReplyMode:()=> 'public'},'../api/email':{pushPreview},'../api/push-accounts':{},'../api/notification-policy':{},'../api/native-push':{},
- '../api/http':{HttpTransport:FailedHttp},'@react-native-async-storage/async-storage':{getItem:async()=>metadata,setItem:async(_:string,value:string)=>{metadata=value}},
+ '../api/http':{HttpTransport:FailedHttp,discover:async(origin:string)=>({...live.config,origin,capabilities:{availability:true}})},'@react-native-async-storage/async-storage':{getItem:async()=>metadata,setItem:async(_:string,value:string)=>{metadata=value}},
  'expo-crypto':{},'expo-notifications':{},'../storage/disk':{openDisk:async(id:string)=>disk(id),deleteAccountDisk:async()=>{}},
  '../storage/vault':{readSession:async(id:string)=>sessions.get(id)||null,saveSession:async(id:string,s:Session)=>{sessions.set(id,s)},deleteSession:async(id:string)=>{sessions.delete(id)}},
  '../api/repository':{InboxRepository},'./chat-navigation':{ChatNavigation},'../api/mock':{MockTransport:CountedMock},'../api/fixtures':{demoAccounts},
@@ -135,4 +135,11 @@ test('availability is read from the server and never leaks between accounts',asy
  // De volta, o valor vem do servidor e nao do otimismo que ficou na tela.
  await h.app.getState().switchAccount(demo);await idle(h.app);
  await until(()=>h.app.getState().available===false);
+});
+test('a capability the server gained reaches an account connected before it',async()=>{
+ assert.equal(live.config?.capabilities?.availability,undefined);
+ const h=harness([live],live.id);h.sessions.set(live.id,{accessToken:'real',expiresAt:Date.now()+3600000});
+ await h.app.getState().boot();await idle(h.app);
+ await until(()=>h.app.getState().active?.config?.capabilities?.availability===true);
+ assert.equal(h.metadata().accounts[0].config.capabilities.availability,true);
 });
