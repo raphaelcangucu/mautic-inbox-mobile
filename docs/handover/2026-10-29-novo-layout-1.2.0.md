@@ -64,11 +64,26 @@ as iniciais são a única informação disponível. As fotos de Facebook e Insta
 URLs assinadas `platform-lookaside.fbsbx.com`, que **expiram** — uma testada em 28/10 devolveu
 HTTP 404. Guardá-las em WebP no servidor foi aprovado pelo Raphael e ainda não foi feito.
 
-## Vídeo e2e
+## Vídeos e2e
 
-`artifacts/qa/api-real/api-real-1.2.0.mp4`, 48s, `1/1 Flow Passed`, contra
-`mkt-macro.on-forge.com`. O fluxo (`e2e/flows/api-real.yaml`) é **somente leitura**: nunca envia,
-assume, resolve, adia nem transfere, para não alterar conversas de cliente numa gravação.
+São dois, por um motivo: validar contra a API real e exercitar as ações exigem coisas
+diferentes. Assumir, adiar, resolver e desmarcar spam **mudam o estado da conversa**, e não se
+altera conversa de cliente para gravar demonstração.
+
+| Arquivo | O que prova | Dados |
+|---|---|---|
+| `artifacts/qa/api-real/api-real-1.2.0.mp4` | o layout funciona com dados reais | produção, somente leitura |
+| `artifacts/qa/acoes-novas/acoes-novas-1.2.0.mp4` | as ações novas funcionam | conta mockada |
+
+### Detalhe de cada um
+
+`api-real-1.2.0.mp4`, 46s, `1/1 Flow Passed`, contra `mkt-macro.on-forge.com`. O fluxo
+(`e2e/flows/api-real.yaml`) é **somente leitura**: nunca envia, assume, resolve, adia nem
+transfere.
+
+`acoes-novas-1.2.0.mp4`, 57s, `1/1 Flow Passed`, na conta mockada (`e2e/flows/acoes-novas.yaml`).
+Esse exercita o arrastar assumindo a conversa, os blocos rápidos, os chips de adiar agindo, o
+cartão de spam, a revisão em lote e o tema trocando entre os três estados.
 
 O build de e2e usa `EXPO_PUBLIC_MAUTIC_E2E_DEMO=1` para abrir a conta mockada sem o gesto de
 balançar, que nenhum simulador iOS injeta. Sem a variável nada muda, e o build de loja continua
