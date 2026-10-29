@@ -75,6 +75,7 @@ function ChatScreen(){
  async function image(){const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:['images'],quality:.6});if(!result.canceled){const a=result.assets[0];useApp.setState({attachment:{name:a.fileName||'imagem.jpg',uri:a.uri,mime:a.mimeType||'image/jpeg',size:a.fileSize}});setAttachmentSheet(false)}}
  const suggest=()=>{if(s.active?.mode==='live')s.navigate('assistant');else{s.setDraft(t("chat.demoSuggestion"));s.notify(t("chat.draftSuggested"))}};
  const choose=(action:()=>void)=>{setMenu(false);action()};
+ const quickAction=(label:string,icon:string,onPress:()=>void,options:{testID?:string;disabled?:boolean;ok?:boolean}={})=><Tap key={label} label={label} testID={options.testID} disabled={options.disabled} onPress={()=>choose(onPress)} style={{flex:1,minHeight:76,height:76,borderRadius:14,backgroundColor:options.ok?c.okBg:c.tintSofter,alignItems:'center',justifyContent:'center',gap:7}}><Icon name={icon} size={22} strokeWidth={2} color={options.ok?c.ok:c.blue}/><T size={13} heavy numberOfLines={1} color={options.ok?c.okText:c.blue}>{label}</T></Tap>;
  const actionRow=(label:string,icon:string,onPress:()=>void,options:{testID?:string;selected?:boolean;disabled?:boolean}={})=><Tap key={label} label={label} testID={options.testID} disabled={options.disabled} onPress={()=>choose(onPress)} style={{minHeight:46,flexDirection:'row',gap:12,justifyContent:'flex-start',paddingVertical:8}}><Icon name={icon} size={20} color={options.selected?c.blue:c.soft}/><T size={14} bold={options.selected} style={{flex:1,lineHeight:20}}>{label}</T>{options.selected&&<Icon name="check" size={18} color={c.blue}/>}</Tap>;
  async function retryMessage(message:Message){
   if(retrying)return;setRetrying(messageKey(message));
@@ -113,6 +114,12 @@ function ChatScreen(){
  {qr&&<WhatsQrConnections assetId={conversation.asset.id} request={qrRequest} hideTrigger onConnected={()=>{void s.sync();void checkQr()}}/>}
  <Sheet title={t("chat.details")} visible={contextSheet} onClose={()=>setContextSheet(false)}><T bold size={17}>{conversation.contact_name}</T><SocialProfileLinks contact={conversation.contact} conversation={conversation}/><T size={13} muted>{channels[conversation.channel]} · {connection.name}</T>{connection.phone&&<T testID="chat-connection-phone" size={13} color={c.blue}>{connection.phone}</T>}{conversation.origins.campaign&&conversation.origins.campaign!==conversation.asset.name&&<T size={13}>{t("actions.campaignLabel",{name:conversation.origins.campaign})}</T>}{conversation.origins.page&&<T size={12} muted>{conversation.origins.page}</T>}<T size={13}>{conversation.assignee?(t("chat.assignee")+" "+conversation.assignee.name):t("filter.unassigned")}</T><Button quiet label={t("chat.contactHistory")} onPress={()=>{setContextSheet(false);s.navigate('contact')}}/>{comment&&<Button quiet label={t("chat.viewOriginal")} onPress={()=>{setContextSheet(false);void publication()}}/>}</Sheet>
  <Sheet title={t("chat.actions")} visible={menu} onClose={()=>setMenu(false)} onDismiss={afterMessagePanel}>
+ <View style={{flexDirection:'row',gap:8,paddingBottom:4}}>
+  {quickAction(conversation.lifecycle==='resolved'?t("chat.reopen"):t("inbox.swipeResolve"),'check',()=>void s.transition(conversation.lifecycle==='resolved'?'reopen':'resolve'),{ok:true,disabled:s.offline,testID:'quick-resolve'})}
+  {quickAction(t("chat.snoozeShort"),'clock',()=>setPanel('snooze'),{testID:'quick-snooze'})}
+  {quickAction(t("chat.transferShort"),'arrow-up',()=>setPanel('transfer'),{testID:'quick-transfer'})}
+  {quickAction(t("chat.take"),'person-outline',take,{testID:'quick-take',disabled:s.offline||(s.active?.mode==='live'&&!access.take)})}
+ </View>
  <View>
  {actionRow(t('message.favorites'),'star',()=>void showFavorites().catch(()=>{setMenu(false);s.notify(t('message.favoriteError'))}),{testID:'open-message-favorites'})}
  {actionRow(t("chat.canned"),'chatbubbles-outline',()=>setPanel('canned'),{testID:'open-canned'})}
