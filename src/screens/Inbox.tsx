@@ -62,7 +62,7 @@ export function Inbox(){
       {!!p.moderation?.spam&&<Tap testID={'comment-not-spam-'+p.id} label={t("inbox.notSpam")} disabled={s.offline||restoring===p.id} onPress={()=>void notSpam(p)} style={{height:34,minHeight:34,paddingHorizontal:14,justifyContent:'center',borderRadius:17,backgroundColor:c.dangerBg}}><T size={13} heavy color={c.danger}>{t("inbox.notSpam")}</T></Tap>}
       {!!p.comment?.canPrivate&&<Tap testID={'comment-reply-private-'+p.id} label={t("inbox.replyPrivate")} onPress={()=>{useApp.setState({replyMode:'private'});void s.openChat(p.id)}} style={{height:34,minHeight:34,paddingHorizontal:14,justifyContent:'center',borderRadius:17,backgroundColor:c.tintSoft}}><T size={13} heavy color={c.blue}>{t("inbox.replyPrivate")}</T></Tap>}
      </View>}
-     {(p.kind==='comments'||p.moderation?.spam||p.moderation?.blockedAuthor)&&<T size={11} color={c.blue} numberOfLines={1}>{p.moderation?.hidden?t("inbox.hiddenInstagram"):p.moderation?.blockedAuthor?t("inbox.blockedAuthor"):p.moderation?.spam?'Spam':p.moderation?.hidden?t("inbox.hidden"):p.comment?.postTitle}</T>}
+     {(p.moderation?.spam||p.moderation?.hidden||p.moderation?.blockedAuthor)&&<T size={11} color={c.blue} numberOfLines={1}>{p.moderation?.hidden?t("inbox.hiddenInstagram"):p.moderation?.blockedAuthor?t("inbox.blockedAuthor"):'Spam'}</T>}
     </View>
     {p.kind==='comments'&&p.comment?.image&&<Image testID={'post-thumbnail-'+p.id} source={{uri:p.comment.image}} style={{width:44,height:44,borderRadius:9,backgroundColor:c.raised}}/>}
    </Tap>;
