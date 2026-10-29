@@ -7,7 +7,7 @@ import {upgrade,featureRequest,type Remote} from './features.ts';
 import {emailReply} from './mock-email.ts';
 import {replySubject} from './email.ts';
 export class MockTransport implements Transport {
-  offline=false; latency=180; uncertainNext=false; conflictNext=false;
+  offline=false; latency=180; uncertainNext=false; conflictNext=false; available=true;
   private lock: Promise<unknown>=Promise.resolve();
   constructor(readonly account: Account,private disk: Storage){}
   async settle(){await this.lock}
@@ -34,7 +34,7 @@ export class MockTransport implements Transport {
       if(String(r.query?.needs_response)==='true')items=items.filter(x=>x.needs_response);
       const offset=Number(r.query?.cursor||0);const limit=Math.min(50,Number(r.query?.limit||25));
       value={items:items.slice(offset,offset+limit),next_cursor:offset+limit<items.length?String(offset+limit):null,counts:{all:items.length,mine:items.filter(x=>x.assignee?.id===this.account.user.id).length,unassigned:items.filter(x=>x.assignee===null).length}};
-    }else if(r.path==='/inbox/mobile/availability'&&r.method==='POST'){value={available:!!(r.body as{available?:boolean})?.available};
+    }else if(r.path==='/inbox/mobile/availability'){if(r.method==='POST')this.available=!!(r.body as{available?:boolean})?.available;value={available:this.available};
     }else if(r.path==='/inbox/api/updates')value={conversations:data.conversations,timeline:r.query?.state_id?data.messages[Number(r.query.state_id)]:[],next_since:new Date().toISOString(),has_more:false};
     else if(r.path==='/inbox/mobile/assistant/messages'&&r.method==='POST'){
       const question=String(b.message||'');const waiting=/aguardando|sem resposta|awaiting|waiting|unanswered|esperando|sin respuesta/i.test(question);const history=/histórico|historico|resumir|history|summari[sz]|historial|resum/i.test(question);const segment=/segment|automa/i.test(question);const draft=!waiting&&/respost|sugest|rascunh|repl|suggest|draft|respuest|suger|borrador/i.test(question);const contact=waiting||/contat|pessoa|contact|person/i.test(question);

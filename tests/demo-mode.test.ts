@@ -45,6 +45,7 @@ function harness(accounts:Account[]=[],activeId:string|null=null){
  vm.runInNewContext(source,{exports,require:(name:string)=>{assert.ok(name in modules,name);return modules[name]},Date,URL,setTimeout,clearTimeout,performance,console});
  return {app:exports.useApp,disk,sessions,created:()=>fixturesCreated,metadata:()=>JSON.parse(metadata!)};
 }
+async function until(check:()=>boolean){for(let n=0;n<400&&!check();n++)await new Promise(r=>setTimeout(r,2));assert.ok(check(),'condicao nao se cumpriu a tempo')}
 async function idle(app:any){for(let n=0;n<300&&app.getState().syncing;n++)await new Promise(r=>setTimeout(r,2));assert.equal(app.getState().syncing,false)}
 
 test('fresh installation and saved demo-only installation never enable mocks on startup',async()=>{
@@ -116,4 +117,22 @@ test('snoozing to a named morning lands at 9am, and Monday never lands on today'
   assert.ok(monday(sunday)>sunday);
   const mondayNow=new Date('2026-11-02T10:00:00');        // segunda: vai para a seguinte, nunca hoje
   assert.equal(monday(mondayNow).getDate(),9);
+});
+test('availability is read from the server and never leaks between accounts',async()=>{
+ const h=harness([live],live.id);h.sessions.set(live.id,{accessToken:'real',expiresAt:Date.now()+3600000});
+ await h.app.getState().boot();await idle(h.app);await h.app.getState().unlockDemo();
+ const demo=h.app.getState().accounts.find((a:Account)=>a.mode==='mock');
+ await h.app.getState().switchAccount(demo);await idle(h.app);
+ assert.equal(h.app.getState().available,true);
+
+ await h.app.getState().setAvailable(false);
+ assert.equal(h.app.getState().available,false);
+
+ // A conta real nao anuncia a capability: entra disponivel, sem herdar o estado da outra.
+ await h.app.getState().switchAccount(live);await idle(h.app);
+ assert.equal(h.app.getState().available,true);
+
+ // De volta, o valor vem do servidor e nao do otimismo que ficou na tela.
+ await h.app.getState().switchAccount(demo);await idle(h.app);
+ await until(()=>h.app.getState().available===false);
 });
