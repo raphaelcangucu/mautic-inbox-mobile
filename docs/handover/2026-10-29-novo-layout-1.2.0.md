@@ -91,9 +91,12 @@ exigindo o gesto.
 
 ## Pendente, aguardando decisão
 
-- **"Disponível para atender"** (tela Conta): não existe endpoint de presença de atendente na
-  API — confirmado buscando `availab`, `presence`, `online` e `away` no bundle. Um interruptor
-  só local diria ao operador que ele está indisponível enquanto o servidor segue distribuindo.
+- **Endpoint de disponibilidade no servidor.** A tela Conta já tem o cartão de perfil com o
+  interruptor "Disponível para atender", mas ele só aparece quando o servidor anuncia
+  `capabilities.availability`. Hoje nenhum anuncia — a busca por `availab`, `presence`, `online`
+  e `away` no bundle não achou presença de atendente — então em produção o cartão fica oculto e
+  nada quebra. A conta mockada anuncia a capacidade, e é lá que o recurso é demonstrável.
+  Falta `POST /inbox/mobile/availability` no `mautic-inbox-bundle`, que é release e deploy.
 - **Cache de fotos em WebP** no `mautic-inbox-bundle`: aprovado, não iniciado.
 
 O **"Ligar"** foi implementado: o bloco aparece na ficha quando há telefone (do CRM ou, no

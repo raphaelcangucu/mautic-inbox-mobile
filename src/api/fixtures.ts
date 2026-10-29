@@ -1,6 +1,6 @@
 import type {Account, Conversation, Message, Template} from './types.ts';
 export const demoAccounts: Account[] = [
-  {id:'macro-7',origin:'https://macro.demo.invalid',name:'Macro Markets',user:{id:7,name:'Raphael',email:'raphael@example.com'}},
+  {id:'macro-7',origin:'https://macro.demo.invalid',name:'Macro Markets',user:{id:7,name:'Raphael',email:'raphael@example.com'},config:{version:1,name:'Macro Markets',origin:'https://macro.demo.invalid',api_base:'https://macro.demo.invalid/inbox/mobile/api',authorization_endpoint:'https://macro.demo.invalid/authorize',token_endpoint:'https://macro.demo.invalid/token',redirect_uri:'mautic-inbox-demo://oauth/callback',capabilities:{availability:true}}},
   {id:'studio-9',origin:'https://studio.demo.invalid',name:'Mautic Studio',user:{id:9,name:'Ana',email:'ana@example.com'}},
 ];
 export function seed(account: Account): {conversations: Conversation[]; messages: Record<number,Message[]>} {

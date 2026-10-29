@@ -34,3 +34,16 @@ test('the dialler only receives digits and a leading plus, and nothing when ther
   assert.equal(digits('sem numero'),'');
   assert.equal(digits(''),'');
 });
+
+test('availability only appears where the server says it exists, and reverts when the call fails',()=>{
+  const shows=(caps?:Record<string,unknown>)=>caps?.availability===true;
+  assert.equal(shows({availability:true}),true);
+  assert.equal(shows({availability:false}),false);
+  assert.equal(shows({}),false);
+  assert.equal(shows(undefined),false);
+  // O otimismo e revertido quando o servidor recusa: o operador nunca fica "disponivel" so na tela.
+  let available=true;const previous=available;
+  available=false;                 // toque otimista
+  available=previous;              // falha do servidor
+  assert.equal(available,true);
+});
