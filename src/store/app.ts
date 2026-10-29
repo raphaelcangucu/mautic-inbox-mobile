@@ -5,7 +5,7 @@ import {initialReplyMode} from '../api/reply-mode';
 import {pushPreview} from '../api/email';
 import {syncPushAccounts} from '../api/push-accounts';
 import {create} from 'zustand';
-import {Platform} from 'react-native';
+import {Platform,Appearance} from 'react-native';
 import {HttpTransport,type MobileConfig} from '../api/http';
 import type {LoginResult} from '../api/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -30,7 +30,10 @@ const prefs:Preferences={sound:true,vibration:true,preview:false,quiet:false,gro
 export type SavedConnection={name:string;origin:string};
 const initialConnections:SavedConnection[]=[{name:'Macro Markets',origin:'https://mkt-macro.on-forge.com'}];
 const metadataKey='mautic-inbox-accounts-v2';
-type Metadata={connections?:SavedConnection[];accounts:Account[];activeId:string|null;theme:'light'|'dark'};
+type Metadata={connections?:SavedConnection[];accounts:Account[];activeId:string|null;theme:'light'|'dark';themeChoice?:ThemeChoice};
+export type ThemeChoice='system'|'light'|'dark';
+const systemTheme=():'light'|'dark'=>Appearance.getColorScheme()==='dark'?'dark':'light';
+const resolveTheme=(choice:ThemeChoice):'light'|'dark'=>choice==='system'?systemTheme():choice;
 const chatNavigation=new ChatNavigation();
 let generation=0;let draftTimer:ReturnType<typeof setTimeout>|undefined;let draftFlush:(()=>Promise<void>)|undefined;
 export async function flushDraft(){if(draftTimer)clearTimeout(draftTimer);const job=draftFlush;draftFlush=undefined;await job?.()}
@@ -42,20 +45,20 @@ function evictConversation(accountId:string,id:number){
  if(view.lastChat===id)delete view.lastChat;delete view.chatOffsets[id];delete view.chatAnchors[id];
  useApp.setState({messages,view,conversations:s.conversations.filter(c=>c.id!==id),...(s.conversationId===id?{route:'inbox',conversationId:0,draft:'',attachment:null,cursor:null,error:'',toast:''}:{})});
 }
-async function persistMeta(){const s=useApp.getState();await AsyncStorage.setItem(metadataKey,JSON.stringify({connections:s.connections,accounts:s.accounts,activeId:s.active?.id||null,theme:s.theme}))}
+async function persistMeta(){const s=useApp.getState();await AsyncStorage.setItem(metadataKey,JSON.stringify({connections:s.connections,accounts:s.accounts,activeId:s.active?.id||null,theme:s.theme,themeChoice:s.themeChoice}))}
 type State={
-  demoUnlocked:boolean;unlockDemo:()=>Promise<void>;hideDemo:()=>Promise<void>;connections:SavedConnection[];connectionDraft:SavedConnection|null;saveConnection:(value:SavedConnection)=>Promise<void>;configure:(value?:SavedConnection)=>void;ready:boolean;accounts:Account[];active:Account|null;repo:InboxRepository|null;transport:MockTransport|HttpTransport|null;route:Route;theme:'light'|'dark';view:ViewState;
+  demoUnlocked:boolean;unlockDemo:()=>Promise<void>;hideDemo:()=>Promise<void>;connections:SavedConnection[];connectionDraft:SavedConnection|null;saveConnection:(value:SavedConnection)=>Promise<void>;configure:(value?:SavedConnection)=>void;ready:boolean;accounts:Account[];active:Account|null;repo:InboxRepository|null;transport:MockTransport|HttpTransport|null;route:Route;theme:'light'|'dark';themeChoice:ThemeChoice;view:ViewState;
   conversations:Conversation[];messages:Record<number,Message[]>;conversationId:number;draft:string;mode:'reply'|'note';attachment:Attachment|null;cursor:string|null;replyMode:'public'|'private';
   syncing:boolean;refreshingList:boolean;offline:boolean;slow:boolean;error:string;toast:string;lastSync:number;listComplete:boolean;preferences:Preferences;pushStatus:PushStatus|null;pushBusy:boolean;refreshPush:()=>Promise<void>;enablePush:(enabled:boolean)=>Promise<void>;testPush:()=>Promise<void>;unseen:number;performance:number[];
   boot:()=>Promise<void>;switchAccount:(a:Account)=>Promise<void>;connect:(config:MobileConfig,result:LoginResult,name:string)=>Promise<void>;logout:(remove?:boolean,localOnly?:boolean)=>Promise<void>;
   navigate:(r:Route)=>void;back:()=>void;sync:(force?:boolean,showRefresh?:boolean)=>Promise<void>;moreConversations:()=>Promise<void>;openChat:(id:number)=>Promise<void>;older:()=>Promise<void>;read:()=>Promise<void>;
   setView:(patch:Partial<ViewState>)=>void;setDraft:(text:string)=>void;setMode:(mode:'reply'|'note')=>Promise<void>;send:(template?:Template,variables?:Record<string,string>,subject?:string)=>Promise<boolean>;
-  retryMessage:(message:Message)=>Promise<boolean>;transition:(action:string,payload?:Record<string,unknown>,conversationId?:number)=>Promise<boolean>;feature:(endpoint:string,payload:Record<string,unknown>)=>Promise<boolean>;themeToggle:()=>void;toggleOffline:()=>void;toggleSlow:()=>void;inject:()=>Promise<void>;toggleWindow:()=>Promise<void>;setPreferences:(patch:Partial<Preferences>)=>void;notify:(message:string)=>void;
+  retryMessage:(message:Message)=>Promise<boolean>;transition:(action:string,payload?:Record<string,unknown>,conversationId?:number)=>Promise<boolean>;feature:(endpoint:string,payload:Record<string,unknown>)=>Promise<boolean>;themeToggle:()=>void;setThemeChoice:(choice:ThemeChoice)=>void;toggleOffline:()=>void;toggleSlow:()=>void;inject:()=>Promise<void>;toggleWindow:()=>Promise<void>;setPreferences:(patch:Partial<Preferences>)=>void;notify:(message:string)=>void;
 };
 export const useApp=create<State>((set,get)=>({
-  demoUnlocked:false,connections:initialConnections,connectionDraft:null,ready:false,accounts:[],active:null,repo:null,transport:null,route:'inbox',theme:'light',view:defaultView(),conversations:[],messages:{},conversationId:0,draft:'',mode:'reply',attachment:null,cursor:null,replyMode:'public',syncing:false,refreshingList:false,offline:false,slow:false,error:'',toast:'',lastSync:0,listComplete:true,preferences:prefs,pushStatus:null,pushBusy:false,unseen:0,performance:[],
+  demoUnlocked:false,connections:initialConnections,connectionDraft:null,ready:false,accounts:[],active:null,repo:null,transport:null,route:'inbox',theme:'light',themeChoice:'light',view:defaultView(),conversations:[],messages:{},conversationId:0,draft:'',mode:'reply',attachment:null,cursor:null,replyMode:'public',syncing:false,refreshingList:false,offline:false,slow:false,error:'',toast:'',lastSync:0,listComplete:true,preferences:prefs,pushStatus:null,pushBusy:false,unseen:0,performance:[],
   boot:async()=>{
-    try{const raw=await AsyncStorage.getItem(metadataKey);const meta:Metadata=raw?JSON.parse(raw):{accounts:[],activeId:null,theme:'light'};set({demoUnlocked:false,connections:meta.connections||initialConnections,accounts:meta.accounts,theme:meta.theme});
+    try{const raw=await AsyncStorage.getItem(metadataKey);const meta:Metadata=raw?JSON.parse(raw):{accounts:[],activeId:null,theme:'light'};const choice:ThemeChoice=meta.themeChoice??meta.theme??'light';set({demoUnlocked:false,connections:meta.connections||initialConnections,accounts:meta.accounts,themeChoice:choice,theme:resolveTheme(choice)});
       if(e2eDemoBuild()){await get().unlockDemo();const mock=get().accounts.find(x=>x.mode==='mock');if(mock){await get().switchAccount(mock);return}}
       const a=bootAccount(meta.accounts,meta.activeId);if(a)await get().switchAccount(a);else set({route:'accounts',connectionDraft:null});
     }catch(e){set({error:String(e),route:'accounts'})}finally{set({ready:true})}
@@ -154,7 +157,8 @@ export const useApp=create<State>((set,get)=>({
   // `conversationId` deixa a lista agir numa linha sem abri-la; sem ele vale a conversa aberta.
   transition:async(action,payload={},conversationId)=>{const s=get();const c=s.conversations.find(c=>c.id===(conversationId??s.conversationId));if(!s.repo||!c||s.offline){get().notify(t("store.connectChange"));return false}const epoch=generation;try{const fresh=await s.repo.transition(c.id,c.version,action,payload);if(epoch===generation)set({conversations:get().conversations.map(c=>c.id===fresh.id?fresh:c)});if(epoch!==generation)return false;get().notify(action==='take'?t("store.taken"):t("store.updated"));return true}catch(e){if(epoch===generation){get().notify(e instanceof Error?e.message:String(e));await get().sync()}return false}},
   feature:async(endpoint,payload)=>{const s=get();const c=s.conversations.find(x=>x.id===s.conversationId);if(!s.repo||!c||s.offline){s.notify(t("store.connectChange"));return false}const epoch=generation;try{const updated=await s.repo.api.request<Conversation>({method:'POST',path:`/inbox/${endpoint==='moderation'?'mobile':'api'}/conversations/${c.id}/${endpoint}`,body:{...payload,version:c.version}});await s.repo.saveConversations([updated]);if(epoch!==generation)return false;set({conversations:get().conversations.map(x=>x.id===updated.id?updated:x)});await get().sync();get().notify(s.active?.mode==='mock'?t("store.demoSaved"):t("store.saved"));return true}catch(e){if(epoch===generation){get().notify(e instanceof Error?e.message:String(e));await get().sync()}return false}},
-  themeToggle:()=>{set({theme:get().theme==='light'?'dark':'light'});void persistMeta()},
+  themeToggle:()=>{get().setThemeChoice(get().theme==='light'?'dark':'light')},
+  setThemeChoice:choice=>{set({themeChoice:choice,theme:resolveTheme(choice)});void persistMeta()},
   toggleOffline:()=>{const value=!get().offline;if(get().transport instanceof MockTransport)(get().transport as MockTransport).offline=value;set({offline:value});if(!value)void get().sync()},
   toggleSlow:()=>{const value=!get().slow;if(get().transport instanceof MockTransport)(get().transport as MockTransport).latency=value?1200:180;set({slow:value})},
   inject:async()=>{const s=get();if(!(s.transport instanceof MockTransport)||!s.repo||s.offline)return;const epoch=generation;await s.transport.inject(s.conversationId);await s.repo.poll(s.conversationId);const [items,conversations]=await Promise.all([s.repo.cachedMessages(s.conversationId),s.repo.cachedList()]);if(epoch!==generation)return;set({messages:{...get().messages,[s.conversationId]:items},conversations,unseen:get().unseen+1});get().notify(t("store.demoNewMessage"))},

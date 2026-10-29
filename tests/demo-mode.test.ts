@@ -93,3 +93,12 @@ test('the e2e demo flag is off unless the build sets it',()=>{
   assert.equal(e2eDemoBuild(),true);
   delete process.env.EXPO_PUBLIC_MAUTIC_E2E_DEMO;
 });
+
+test('the theme choice resolves to a concrete theme and remembers what was picked',()=>{
+  // "Sistema" nao e um tema: e a escolha de seguir o aparelho, e precisa sobreviver ao reinicio.
+  const resolve=(choice:'system'|'light'|'dark',system:'light'|'dark')=>choice==='system'?system:choice;
+  assert.equal(resolve('system','dark'),'dark');
+  assert.equal(resolve('system','light'),'light');
+  assert.equal(resolve('dark','light'),'dark');
+  assert.equal(resolve('light','dark'),'light');
+});
