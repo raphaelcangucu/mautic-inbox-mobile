@@ -43,10 +43,10 @@ export function Top(){
   </Tap>
   <Tap onPress={()=>s.navigate('search')} label={t("inbox.searchLabel")} testID="open-search" style={icon}><Icon name="search-outline" size={23} strokeWidth={1.9}/></Tap>
   <Tap onPress={()=>s.navigate('contacts')} label={t("inbox.newConversation")} testID="new-conversation" style={icon}><Icon name="plus" size={24} strokeWidth={2.1}/></Tap>
-  <Tap onPress={()=>s.navigate('notifications')} label={count?t('nav.notificationsCount',{count}):t('nav.notifications')} style={icon}><Icon name="notifications-outline" size={23} strokeWidth={1.9}/>{count>0&&<View pointerEvents="none" style={{position:'absolute',right:0,top:0,minWidth:18,paddingHorizontal:4,height:18,borderWidth:2,borderColor:c.canvas,borderRadius:9,backgroundColor:c.blue,alignItems:'center',justifyContent:'center'}}><T size={9} heavy color={c.paper} line={12}>{count>99?'99+':count}</T></View>}</Tap>
+  <Tap testID="open-notifications" onPress={()=>s.navigate('notifications')} label={count?t('nav.notificationsCount',{count}):t('nav.notifications')} style={icon}><Icon name="notifications-outline" size={23} strokeWidth={1.9}/>{count>0&&<View pointerEvents="none" style={{position:'absolute',right:0,top:0,minWidth:18,paddingHorizontal:4,height:18,borderWidth:2,borderColor:c.canvas,borderRadius:9,backgroundColor:c.blue,alignItems:'center',justifyContent:'center'}}><T size={9} heavy color={c.paper} line={12}>{count>99?'99+':count}</T></View>}</Tap>
  </View>
 }
-export function Header({title,right,onBack}:{title:string;right?:React.ReactNode;onBack?:()=>void}){const c=useTheme();const back=useApp(s=>s.back);return <View style={{flexDirection:'row',gap:10,alignItems:'center',paddingHorizontal:12,paddingVertical:10,backgroundColor:c.paper}}><Tap onPress={onBack||back} label={t("common.back")} style={{width:38,alignItems:'center'}}><Icon name="chevron-back"/></Tap><T bold size={14} style={{flex:1}}>{title}</T>{right}</View>}
+export function Header({title,right,onBack}:{title:string;right?:React.ReactNode;onBack?:()=>void}){const c=useTheme();const back=useApp(s=>s.back);return <View style={{flexDirection:'row',gap:10,alignItems:'center',paddingHorizontal:12,paddingVertical:10,backgroundColor:c.paper}}><Tap testID="header-back" onPress={onBack||back} label={t("common.back")} style={{width:38,alignItems:'center'}}><Icon name="chevron-back"/></Tap><T bold size={14} style={{flex:1}}>{title}</T>{right}</View>}
 export function Tabs({bottomInset}:{bottomInset:number}){
  const c=useTheme();
  const route=useApp(s=>s.route);
