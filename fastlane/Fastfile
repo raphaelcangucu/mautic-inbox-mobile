@@ -12,6 +12,7 @@ APPLE_TEAM_ID = CONFIG.fetch("ios").fetch("appleTeamId")
 VERSION = JSON.parse(File.read(File.join(ROOT, "package.json"))).fetch("version")
 BUILD = CONFIG.fetch("ios").fetch("buildNumber")
 WORKSPACE_DIR = ENV.fetch("MAUTIC_IOS_RELEASE_WORKSPACE", "/tmp/mautic-inbox-release")
+INTERNAL_GROUP = ENV.fetch("MAUTIC_TESTFLIGHT_GROUP", "Mautic Inbox - Validacao iOS")
 
 def private_connect_key
   ensure_env_vars(env_vars: %w[APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_ISSUER_ID APP_STORE_CONNECT_KEY_PATH])
@@ -248,6 +249,35 @@ def verified_export_compliance(ipa_path)
   report.fetch("usesNonExemptEncryption")
 end
 
+# upload_to_testflight prints "Successfully distributed build to Internal testers"
+# even when the build joins no tester group. It then rests at READY_FOR_BETA_TESTING
+# and no device is ever offered it: 1.1.1 (44) and 1.2.2 (47) reached TestFlight that
+# way and could not be installed. Attach the group here, and trust the state Apple
+# records rather than the upload's own message.
+def distribute_to_internal_group
+  app = Spaceship::ConnectAPI::App.find(APP_IDENTIFIER)
+  build = internal_build(app)
+  UI.user_error!("Uploaded build #{VERSION} (#{BUILD}) is not in App Store Connect") unless build
+  group = app.get_beta_groups.find { |item| item.is_internal_group && item.name == INTERNAL_GROUP }
+  UI.user_error!("Internal tester group '#{INTERNAL_GROUP}' was not found") unless group
+  unless build.build_beta_detail&.internal_build_state == "IN_BETA_TESTING"
+    Spaceship::ConnectAPI.add_beta_groups_to_build(build_id: build.id, beta_group_ids: [group.id])
+  end
+  # Apple takes a few seconds to move the build out of READY_FOR_BETA_TESTING.
+  state = nil
+  8.times do
+    sleep(3)
+    state = internal_build(app)&.build_beta_detail&.internal_build_state
+    break if state == "IN_BETA_TESTING"
+  end
+  UI.user_error!("Build #{VERSION} (#{BUILD}) is #{state || 'unknown'}, not IN_BETA_TESTING: internal testers cannot install it") unless state == "IN_BETA_TESTING"
+  UI.success("Build #{VERSION} (#{BUILD}) is in beta testing for '#{INTERNAL_GROUP}'.")
+end
+
+def internal_build(app)
+  Spaceship::ConnectAPI::Build.all(app_id: app.id, version: VERSION, includes: "buildBetaDetail").find { |item| item.version.to_s == BUILD.to_s }
+end
+
 platform :ios do
   desc "Save the restricted review account and WebChat instructions without submitting"
   lane :review_access do
@@ -298,6 +328,7 @@ platform :ios do
     ensure_env_vars(env_vars: %w[IOS_IPA_PATH])
     sh("python3", File.join(ROOT, "scripts/release_preflight.py"), "--ipa", ENV.fetch("IOS_IPA_PATH"))
     upload_to_testflight(api_key: private_connect_key, ipa: ENV.fetch("IOS_IPA_PATH"), app_identifier: APP_IDENTIFIER, uses_non_exempt_encryption: verified_export_compliance(ENV.fetch("IOS_IPA_PATH")), distribute_external: false, notify_external_testers: false, skip_waiting_for_build_processing: false, changelog: "Atendimento multicanal, assistente, comentários, moderação e notificações diretas do Mautic no iPhone.")
+    distribute_to_internal_group
   end
 
   desc "Generate localized headlines, metadata and artwork from the current native captures"
