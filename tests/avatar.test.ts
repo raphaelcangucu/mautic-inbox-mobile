@@ -16,3 +16,13 @@ test('a gravatar without a picture is asked to fail so the initials show instead
   // URL invalida nao quebra a lista.
   assert.equal(resolvedAvatar('nao-e-url'),'nao-e-url');
 });
+
+test('restoring only touches comments the triage actually marked as spam',()=>{
+  // Espelha o filtro do moderateSelection: `restore` so age onde ha marca de spam.
+  const pending=(action:string,c:{moderation?:{spam?:boolean;hidden?:boolean}})=>
+    action==='spam'?!c.moderation?.spam:action==='restore'?!!c.moderation?.spam:action==='hide'?!c.moderation?.hidden:false;
+  assert.equal(pending('restore',{moderation:{spam:true}}),true);
+  assert.equal(pending('restore',{moderation:{spam:false}}),false);
+  assert.equal(pending('restore',{}),false);
+  assert.equal(pending('spam',{moderation:{spam:true}}),false);
+});

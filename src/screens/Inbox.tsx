@@ -4,6 +4,7 @@ import {formatTime,formatNumber} from '../i18n/engine';
 import {t} from '../i18n/engine';
 import {Sheet} from '../components/Sheet';
 import {BulkModeration} from '../components/BulkModeration';
+import {moderateSelection,mergeModeration} from '../api/moderation';
 import React,{useRef,useEffect,useState,useMemo} from 'react';
 import {Image,View,TextInput,ScrollView,FlatList,RefreshControl} from 'react-native';
 import {T,Tap,Icon,Avatar,ChannelLabel,Button,Top,Chip} from '../components/ui';
@@ -25,6 +26,14 @@ export function Inbox(){
    for(const p of shown){const title=p.comment?.postTitle||'';if(title&&title!==last){out.push({postHeader:title,image:p.comment?.image??undefined,key:'post:'+title});last=title}out.push(p)}
    return out;
   },[shown,view.kind]);
+  const [restoring,setRestoring]=useState(0);
+  async function notSpam(p:Conversation){
+   const repo=s.repo;if(!repo||s.offline||restoring)return;
+   setRestoring(p.id);
+   const account=s.active?.id;
+   try{await moderateSelection(repo.api,[p],'restore',()=>useApp.getState().active?.id===account,async fresh=>{useApp.setState({conversations:mergeModeration(useApp.getState().conversations,fresh)})},()=>{})}
+   finally{if(useApp.getState().active?.id===account)setRestoring(0)}
+  }
   const commentCount=useMemo(()=>s.conversations.filter(x=>(x.kind||'inbox')==='comments').length,[s.conversations]);
   // Conta o que está restringindo a lista, para o badge do chip de filtros.
   const activeFilters=(view.filter!=='Todas'?1:0)+(view.channels.length!==Object.keys(channels).length?1:0)+(view.search?1:0);
@@ -50,6 +59,7 @@ export function Inbox(){
      <ChannelLabel conversation={p}/>
      {view.kind==='comments'&&!selecting&&<View style={{flexDirection:'row',gap:8,paddingTop:6}}>
       {p.comment?.canPublic!==false&&<Tap testID={'comment-reply-public-'+p.id} label={t("inbox.replyPublic")} onPress={()=>{useApp.setState({replyMode:'public'});void s.openChat(p.id)}} style={{height:34,minHeight:34,paddingHorizontal:14,justifyContent:'center',borderRadius:17,backgroundColor:c.tintSoft}}><T size={13} heavy color={c.blue}>{t("inbox.replyPublic")}</T></Tap>}
+      {!!p.moderation?.spam&&<Tap testID={'comment-not-spam-'+p.id} label={t("inbox.notSpam")} disabled={s.offline||restoring===p.id} onPress={()=>void notSpam(p)} style={{height:34,minHeight:34,paddingHorizontal:14,justifyContent:'center',borderRadius:17,backgroundColor:c.dangerBg}}><T size={13} heavy color={c.danger}>{t("inbox.notSpam")}</T></Tap>}
       {!!p.comment?.canPrivate&&<Tap testID={'comment-reply-private-'+p.id} label={t("inbox.replyPrivate")} onPress={()=>{useApp.setState({replyMode:'private'});void s.openChat(p.id)}} style={{height:34,minHeight:34,paddingHorizontal:14,justifyContent:'center',borderRadius:17,backgroundColor:c.tintSoft}}><T size={13} heavy color={c.blue}>{t("inbox.replyPrivate")}</T></Tap>}
      </View>}
      {(p.kind==='comments'||p.moderation?.spam||p.moderation?.blockedAuthor)&&<T size={11} color={c.blue} numberOfLines={1}>{p.moderation?.hidden?t("inbox.hiddenInstagram"):p.moderation?.blockedAuthor?t("inbox.blockedAuthor"):p.moderation?.spam?'Spam':p.moderation?.hidden?t("inbox.hidden"):p.comment?.postTitle}</T>}
