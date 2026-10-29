@@ -79,9 +79,11 @@ exigindo o gesto.
 - **"Disponível para atender"** (tela Conta): não existe endpoint de presença de atendente na
   API — confirmado buscando `availab`, `presence`, `online` e `away` no bundle. Um interruptor
   só local diria ao operador que ele está indisponível enquanto o servidor segue distribuindo.
-- **"Ligar"** na ficha do contato: o README marca como fora do que o app faz hoje, e a instrução
-  do projeto é perguntar antes.
 - **Cache de fotos em WebP** no `mautic-inbox-bundle`: aprovado, não iniciado.
+
+O **"Ligar"** foi implementado: o bloco aparece na ficha quando há telefone (do CRM ou, no
+WhatsApp, do próprio destinatário) e abre o discador do sistema com `tel:`. O app entrega o
+número; quem disca é o aparelho, e nada é enviado.
 
 ## Versão
 

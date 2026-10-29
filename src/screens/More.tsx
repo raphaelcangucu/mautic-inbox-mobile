@@ -22,7 +22,9 @@ import {T,Tap,Icon,Avatar,Button,Field,Card,Header,Top,ChannelLabel,DetailRow,Br
 import {channels} from '../api/types';
 import {pushPreview} from '../api/email';
 export function Contact(){
- const s=useApp();const c=useTheme();const [panel,setPanel]=useState<Panel>(null);const p=s.conversations.find(x=>x.id===s.conversationId);if(!p)return null;
+ const s=useApp();const c=useTheme();const [panel,setPanel]=useState<Panel>(null);
+ const dial=(number:string)=>{const digits=number.replace(/[^+0-9]/g,'');if(digits)void Linking.openURL('tel:'+digits).catch(()=>s.notify(t("contact.callError")))};const p=s.conversations.find(x=>x.id===s.conversationId);if(!p)return null;
+ const phone=(p.contact?.phone||(p.channel==='whatsapp'?p.recipient:'')||'').trim();
  return <View style={{flex:1}}><Header title={t("contact.title")} right={<Tap label={t("contact.assistantLabel")} onPress={()=>s.navigate('assistant')} style={{width:26,alignItems:'center'}}><Icon name="sparkles-outline" color={c.blue}/></Tap>}/>
  <ScrollView keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" contentContainerStyle={{paddingHorizontal:18,paddingTop:5,paddingBottom:18}}>
  <View style={{alignItems:'center',paddingVertical:16,gap:10}}>
@@ -32,7 +34,7 @@ export function Contact(){
   <View style={{flexDirection:'row',gap:8,flexWrap:'wrap',justifyContent:'center'}}>{[p.contact?t("contact.linked"):t("contact.noLink"),p.kind==='comments'?t("chat.publicComment"):p.origins.campaign].filter(Boolean).map(label=><View key={label} style={{paddingHorizontal:12,height:30,justifyContent:'center',borderRadius:15,backgroundColor:c.tintSoft}}><T size={13} heavy color={c.onTint}>{label}</T></View>)}</View>
  </View>
  <View style={{flexDirection:'row',gap:10,paddingBottom:16}}>
-  {([[t("contact.backChat"),'chat',()=>s.navigate('chat'),true],[t("contact.assistantLabel"),'sparkles-outline',()=>s.navigate('assistant'),false],[t("contact.update"),'more',()=>setPanel('crm'),false]] as const).map(([label,icon,onPress,filled])=>
+  {([[t("contact.backChat"),'chat',()=>s.navigate('chat'),true],...(phone?[[t("contact.call"),'phone',()=>dial(phone),false] as const]:[]),[t("contact.assistantLabel"),'sparkles-outline',()=>s.navigate('assistant'),false],[t("contact.update"),'more',()=>setPanel('crm'),false]] as const).map(([label,icon,onPress,filled])=>
    <Tap key={label} label={label} onPress={onPress} style={{flex:1,alignItems:'center',gap:8}}>
     <View style={{width:60,height:60,borderRadius:18,alignItems:'center',justifyContent:'center',backgroundColor:filled?c.blue:c.paper,borderWidth:filled?0:1,borderColor:c.line}}><Icon name={icon} size={24} strokeWidth={2} color={filled?c.paper:c.blue}/></View>
     <T size={13} heavy numberOfLines={1} color={filled?c.ink:c.inkStrong}>{label}</T>

@@ -26,3 +26,11 @@ test('restoring only touches comments the triage actually marked as spam',()=>{
   assert.equal(pending('restore',{}),false);
   assert.equal(pending('spam',{moderation:{spam:true}}),false);
 });
+
+test('the dialler only receives digits and a leading plus, and nothing when there is no number',()=>{
+  const digits=(n:string)=>n.replace(/[^+0-9]/g,'');
+  assert.equal(digits('+55 (31) 97505-3794'),'+553197505379'+'4');
+  assert.equal(digits('(48) 99101-7788'),'48991017788');
+  assert.equal(digits('sem numero'),'');
+  assert.equal(digits(''),'');
+});
