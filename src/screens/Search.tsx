@@ -46,7 +46,7 @@ export function Search(){
   <View style={{flexDirection:'row',gap:8,alignItems:'center',paddingHorizontal:8,paddingVertical:8}}>
    <Tap label={t("common.back")} testID="search-back" onPress={()=>s.back()} style={{width:40,alignItems:'center'}}><Icon name="chevron-back" size={22}/></Tap>
    <View style={{flex:1,height:48,flexDirection:'row',gap:10,alignItems:'center',paddingHorizontal:16,borderRadius:radius.pill+4,backgroundColor:c.field}}>
-    <TextInput ref={field} accessibilityLabel={t("inbox.searchLabel")} testID="search-conversations" value={query} onChangeText={setQuery} placeholder={t("inbox.searchPlaceholder")} placeholderTextColor={c.faint} autoCorrect={false} returnKeyType="search" style={{flex:1,color:c.ink,fontFamily:font.regular,fontSize:16,paddingVertical:0,includeFontPadding:false}}/>
+    <TextInput ref={field} accessibilityLabel={t("inbox.searchLabel")} testID="search-conversations" value={query} onChangeText={setQuery} placeholder={t("inbox.searchPlaceholder")} placeholderTextColor={c.faint} autoCapitalize="none" autoCorrect={false} returnKeyType="search" style={{flex:1,color:c.ink,fontFamily:font.regular,fontSize:16,paddingVertical:0,includeFontPadding:false}}/>
     {!!query&&<Tap label={t("inbox.clearSearch")} testID="search-clear" onPress={()=>setQuery('')} style={{width:28,alignItems:'center'}}><Icon name="close" size={20} color={c.soft}/></Tap>}
    </View>
   </View>
@@ -74,7 +74,7 @@ export function Search(){
      <Mark text={contact.name} query={query} size={16} semi line={22} numberOfLines={1}/>
      <T size={14} line={19} muted numberOfLines={1}>{[contact.email||contact.phone,t("search.noConversation")].filter(Boolean).join(' · ')}</T>
     </View>
-    <StartContactConversation contactId={contact.id}/>
+    <StartContactConversation contactId={contact.id} compact/>
    </View>)}
    {showContacts&&<Tap label={t("search.seeContacts",{count:contacts.length})} testID="search-see-contacts" onPress={()=>s.navigate('contacts')} style={{flexDirection:'row',gap:8,paddingHorizontal:16,paddingTop:16,minHeight:44}}><T size={15} heavy color={c.blue}>{t("search.seeContacts",{count:contacts.length})}</T><Icon name="chevron-forward" size={18} color={c.blue}/></Tap>}
    {!!query.trim()&&!loading&&!conversations.length&&!contacts.length&&!error&&<T size={14} muted style={{padding:24,textAlign:'center'}}>{t("contact.emptySearch")}</T>}

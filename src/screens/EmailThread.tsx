@@ -48,6 +48,7 @@ export function EmailThread(){
  async function openCompose(mode:'reply'|'note'){Keyboard.dismiss();await s.setMode(mode);setCompose(mode)}
  const take=()=>{const run=()=>void s.transition('take');if(conversation.assignee&&conversation.assignee.id!==s.active?.user.id)Alert.alert(t('chat.takeTitle'),t('chat.takeBody',{name:conversation.assignee.name}),[{text:t('common.cancel'),style:'cancel'},{text:t('chat.take'),onPress:run}]);else run()};
  const choose=(action:()=>void)=>{if(Platform.OS==='ios'){pending.current=action;setMenu(false)}else{setMenu(false);action()}};
+ const quickAction=(label:string,icon:string,onPress:()=>void,options:{testID?:string;disabled?:boolean;ok?:boolean}={})=><Tap key={label} label={label} testID={options.testID} disabled={options.disabled} onPress={()=>choose(onPress)} style={{flex:1,minHeight:76,height:76,borderRadius:14,backgroundColor:options.ok?c.okBg:c.tintSofter,alignItems:'center',justifyContent:'center',gap:7}}><Icon name={icon} size={22} strokeWidth={2} color={options.ok?c.ok:c.blue}/><T size={13} heavy numberOfLines={1} color={options.ok?c.okText:c.blue}>{label}</T></Tap>;
  const row=(label:string,icon:string,onPress:()=>void,testID?:string,disabled=false)=><Tap key={label} label={label} testID={testID} disabled={disabled} onPress={()=>choose(onPress)} style={{minHeight:46,flexDirection:'row',gap:12,justifyContent:'flex-start',paddingVertical:8}}><Icon name={icon} size={20} color={c.soft}/><T size={14} style={{flex:1,lineHeight:20}}>{label}</T></Tap>;
  // The thread remounts after the composition closes: show its end again, where Reply is.
  if(compose)return <EmailCompose conversation={conversation} mode={compose} previousSubject={subject} onClose={()=>{positioned.current=false;setCompose(null)}} onSent={()=>{positioned.current=false;nearEnd.current=true;setCompose(null);void useApp.getState().setMode('reply')}}/>;
@@ -92,6 +93,12 @@ export function EmailThread(){
   <MessageActions message={actionMessage} favorite={!!actionMessage&&(favoriteIds.has(favoriteIdentity(actionMessage))||favoriteIds.has(messageKey(actionMessage)))} onClose={()=>setActionMessage(null)} onFavorite={favoriteMessage} forwardRequest={forwardRequest}/>
   <Sheet title={t('chat.details')} visible={context} onClose={()=>setContext(false)}><T bold size={17}>{conversation.contact_name}</T><T size={13} selectable>{conversation.recipient}</T><T size={13} muted>{t('email.accountLine',{account:connection.label})}</T><T size={13}>{conversation.assignee?t('chat.assignee')+' '+conversation.assignee.name:t('filter.unassigned')}</T><Button quiet label={t('chat.contactHistory')} onPress={()=>{setContext(false);s.navigate('contact')}}/></Sheet>
   <Sheet title={t('chat.actions')} visible={menu} onClose={()=>setMenu(false)} onDismiss={()=>{const run=pending.current;pending.current=null;run?.()}}>
+   <View style={{flexDirection:'row',gap:8,paddingBottom:4}}>
+    {quickAction(conversation.lifecycle==='resolved'?t('chat.reopen'):t('inbox.swipeResolve'),'check',()=>void s.transition(conversation.lifecycle==='resolved'?'reopen':'resolve'),{ok:true,disabled:s.offline,testID:'quick-resolve'})}
+    {quickAction(t('chat.snoozeShort'),'clock',()=>setPanel('snooze'),{testID:'quick-snooze'})}
+    {quickAction(t('chat.transferShort'),'arrow-up',()=>setPanel('transfer'),{testID:'quick-transfer'})}
+    {quickAction(t('chat.take'),'person-outline',take,{testID:'quick-take',disabled:s.offline||(s.active?.mode==='live'&&!access.take)})}
+   </View>
    <View>
     {row(t('email.reply'),'reply',()=>void openCompose('reply'),'menu-email-reply')}
     {row(t('chat.note'),'lock-closed-outline',()=>void openCompose('note'),'menu-email-note')}

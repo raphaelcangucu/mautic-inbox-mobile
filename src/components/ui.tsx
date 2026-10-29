@@ -32,10 +32,18 @@ export function AssetAvatar({conversation,size=20}:{conversation:Conversation;si
 export function Brand(){const c=useTheme();return <View style={{height:28,width:28,backgroundColor:c.blue,borderRadius:9,alignItems:'center',justifyContent:'center'}}><T bold size={18} color={c.paper}>m</T></View>}
 export function Top(){
  const c=useTheme();const s=useApp();const count=s.conversations.filter(x=>!x.moderation?.spam&&!x.moderation?.blockedAuthor&&(x.unread>0||x.needs_response)).length;
- return <View style={{height:57,flexDirection:'row',gap:10,alignItems:'center',paddingHorizontal:18}}>
-  <Tap onPress={()=>s.navigate('accounts')} label={t("nav.switchMautic")} style={{flex:1,flexDirection:'row',gap:7,justifyContent:'flex-start'}}><Brand/><T bold size={14} numberOfLines={1}>{s.active?.name||'Mautic Inbox'}</T><Icon name="chevron-down" size={13}/></Tap>
-  <Tap onPress={()=>s.navigate('search')} label={t("inbox.searchLabel")} testID="open-search" style={{width:40,minHeight:40,height:40,alignItems:'center'}}><Icon name="search-outline" size={24} strokeWidth={1.9}/></Tap><Tap onPress={()=>s.navigate('notifications')} label={count?t('nav.notificationsCount',{count}):t('nav.notifications')} style={{width:40,minHeight:40,height:40,borderWidth:1,borderColor:c.line,borderRadius:12,backgroundColor:c.paper,alignItems:'center'}}><Icon name="notifications-outline" size={22} strokeWidth={1.9}/>{count>0&&<View pointerEvents="none" style={{position:'absolute',right:-5,top:-5,minWidth:18,paddingHorizontal:4,height:18,borderWidth:2,borderColor:c.paper,borderRadius:9,backgroundColor:c.blue,alignItems:'center',justifyContent:'center'}}><T size={9} bold color={c.paper} style={{lineHeight:12}}>{count>99?'99+':count}</T></View>}</Tap>
-  
+ const icon={width:40,minHeight:40,height:40,alignItems:'center' as const};
+ return <View style={{minHeight:64,flexDirection:'row',gap:4,alignItems:'center',paddingHorizontal:16,paddingVertical:8}}>
+  <Tap onPress={()=>s.navigate('accounts')} label={t("nav.switchMautic")} style={{flex:1,flexDirection:'row',gap:10,justifyContent:'flex-start'}}>
+   <Brand/>
+   <View style={{flex:1,gap:1}}>
+    <View style={{flexDirection:'row',gap:5,alignItems:'center'}}><T heavy size={15} line={20} numberOfLines={1} style={{flexShrink:1}}>{s.active?.name||'Mautic Inbox'}</T><Icon name="chevron-down" size={14} color={c.soft}/></View>
+    {!!s.active?.user.email&&<View style={{flexDirection:'row',gap:6,alignItems:'center'}}><View testID="availability-dot" style={{width:8,height:8,borderRadius:4,backgroundColor:s.offline?c.danger:c.ok}}/><T size={11} line={15} muted numberOfLines={1} style={{flexShrink:1}}>{s.active.user.email}</T></View>}
+   </View>
+  </Tap>
+  <Tap onPress={()=>s.navigate('search')} label={t("inbox.searchLabel")} testID="open-search" style={icon}><Icon name="search-outline" size={23} strokeWidth={1.9}/></Tap>
+  <Tap onPress={()=>s.navigate('contacts')} label={t("inbox.newConversation")} testID="new-conversation" style={icon}><Icon name="plus" size={24} strokeWidth={2.1}/></Tap>
+  <Tap onPress={()=>s.navigate('notifications')} label={count?t('nav.notificationsCount',{count}):t('nav.notifications')} style={icon}><Icon name="notifications-outline" size={23} strokeWidth={1.9}/>{count>0&&<View pointerEvents="none" style={{position:'absolute',right:0,top:0,minWidth:18,paddingHorizontal:4,height:18,borderWidth:2,borderColor:c.canvas,borderRadius:9,backgroundColor:c.blue,alignItems:'center',justifyContent:'center'}}><T size={9} heavy color={c.paper} line={12}>{count>99?'99+':count}</T></View>}</Tap>
  </View>
 }
 export function Header({title,right,onBack}:{title:string;right?:React.ReactNode;onBack?:()=>void}){const c=useTheme();const back=useApp(s=>s.back);return <View style={{flexDirection:'row',gap:10,alignItems:'center',paddingHorizontal:12,paddingVertical:10,backgroundColor:c.paper}}><Tap onPress={onBack||back} label={t("common.back")} style={{width:38,alignItems:'center'}}><Icon name="chevron-back"/></Tap><T bold size={14} style={{flex:1}}>{title}</T>{right}</View>}
