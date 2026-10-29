@@ -6,7 +6,7 @@ import {conversationConnection} from '../api/conversation-connection';
 import {replyAccess} from '../api/reply-mode';
 import {deliveryReport} from '../api/delivery-diagnostics';
 import {favoriteIdentity,type MessageFavorite} from '../api/message-favorites';
-import {messageKey,type Message} from '../api/types';
+import {channels,messageKey,type Message} from '../api/types';
 import {visibleChatMessages} from '../components/chat-timeline';
 import {EmailCard} from '../components/EmailCard';
 import {MessageActions} from '../components/MessageActions';
@@ -54,16 +54,21 @@ export function EmailThread(){
  const owner=conversation.assignee?.id===s.active?.user.id?t('chat.withYou'):conversation.assignee?.name||t('filter.unassigned');
  const delayed=conversation.email?.inbound==='delayed';
  return <Animated.View style={[{flex:1},swipe.style]}>
-  <View testID="email-thread-header" style={{flexDirection:'row',alignItems:'flex-start',gap:6,paddingHorizontal:8,paddingTop:6,paddingBottom:10,backgroundColor:c.paper,borderBottomWidth:1,borderColor:c.line}}>
-   <Tap label={t('chat.backInbox')} testID="email-thread-back" onPress={backToInbox} style={{width:36,minHeight:44,alignItems:'center'}}><Icon name="chevron-back" size={21}/></Tap>
-   <View style={{flex:1,gap:5,paddingTop:8}}>
-    <T testID="email-thread-subject" bold size={18} numberOfLines={3} style={{lineHeight:24}}>{subject||t('email.noSubject')}</T>
-    <View style={{flexDirection:'row',flexWrap:'wrap',gap:6,alignItems:'center'}}>
-     <View testID="email-thread-account" style={{flexDirection:'row',gap:5,alignItems:'center',paddingHorizontal:8,paddingVertical:3,borderRadius:8,backgroundColor:c.tint,maxWidth:'100%'}}><Icon name="mail" size={12} color={c.blue}/><T size={11} color={c.blue} numberOfLines={1} style={{flexShrink:1,lineHeight:15}}>{connection.label}</T></View>
-    </View>
-    <Tap testID="chat-context" label={t('chat.details')} onPress={()=>setContext(true)} style={{minHeight:28,alignItems:'flex-start'}}><T size={11} muted numberOfLines={1}>{conversation.contact_name} · {owner}</T></Tap>
+  <View testID="email-thread-header" style={{paddingHorizontal:8,paddingTop:6,paddingBottom:12,backgroundColor:c.paper,borderBottomWidth:1,borderColor:c.divider,gap:10}}>
+   <View style={{flexDirection:'row',alignItems:'center',gap:2}}>
+    <Tap label={t('chat.backInbox')} testID="email-thread-back" onPress={backToInbox} style={{width:40,minHeight:44,alignItems:'center'}}><Icon name="chevron-back" size={22}/></Tap>
+    <View style={{flex:1}}/>
+    <Tap label={conversation.lifecycle==='resolved'?t('chat.reopen'):t('chat.resolve')} testID="email-resolve" disabled={s.offline} onPress={()=>void s.transition(conversation.lifecycle==='resolved'?'reopen':'resolve')} style={{width:44,minHeight:44,alignItems:'center'}}><Icon name={conversation.lifecycle==='resolved'?'refresh':'check'} size={22} color={c.blue}/></Tap>
+    <Tap label={t('email.reply')} testID="email-header-reply" disabled={s.offline} onPress={()=>void openCompose('reply')} style={{width:44,minHeight:44,alignItems:'center'}}><Icon name="mail" size={22} color={c.blue}/></Tap>
+    <Tap label={t('chat.actions')} testID="chat-actions" onPress={()=>{Keyboard.dismiss();setMenu(true)}} style={{width:44,minHeight:44,alignItems:'center'}}><Icon name="more" size={22} strokeWidth={2.6}/></Tap>
    </View>
-   <Tap label={t('chat.actions')} testID="chat-actions" onPress={()=>{Keyboard.dismiss();setMenu(true)}} style={{width:44,minHeight:44,alignItems:'center'}}><Icon name="more" size={22} strokeWidth={2.6}/></Tap>
+   <View style={{paddingHorizontal:10,gap:8}}>
+    <T testID="email-thread-subject" heavy size={22} line={28} numberOfLines={3}>{subject||t('email.noSubject')}</T>
+    <View style={{flexDirection:'row',flexWrap:'wrap',gap:8,alignItems:'center'}}>
+     <View testID="email-thread-account" style={{paddingHorizontal:10,paddingVertical:4,borderRadius:8,backgroundColor:c.warnBg}}><T size={13} heavy color={c.warnText}>{channels.email}</T></View>
+     <Tap testID="chat-context" label={t('chat.details')} onPress={()=>setContext(true)} style={{flex:1,minHeight:28,alignItems:'flex-start'}}><T size={14} muted numberOfLines={1}>{connection.label} · {owner}</T></Tap>
+    </View>
+   </View>
   </View>
   {delayed&&<View testID="email-inbound-delayed" style={{flexDirection:'row',gap:8,paddingHorizontal:16,paddingVertical:7,backgroundColor:c.canvas,borderBottomWidth:1,borderColor:c.line}}><Icon name="clock" size={14} color={c.soft}/><T size={11} muted style={{flex:1,lineHeight:16}}>{conversation.email?.inbound_since?t('email.delayedSince',{time:formatDateTime(conversation.email.inbound_since)}):t('email.delayed')}</T></View>}
   {(access.reason||s.offline)&&<View testID="reply-blocked-reason" style={{paddingHorizontal:16,paddingVertical:7,backgroundColor:c.warnBg}}><T size={11} color={c.warn}>{s.offline?t('inbox.offline'):access.reason}</T></View>}
@@ -81,8 +86,8 @@ export function EmailThread(){
   </View>
   {s.toast&&<View pointerEvents="none" testID="chat-feedback" style={{paddingHorizontal:16,paddingVertical:6,backgroundColor:c.tint}}><T size={11} color={c.blue}>{s.toast}</T></View>}
   <View testID="email-thread-actions" style={{flexDirection:'row',gap:8,padding:10,backgroundColor:c.paper,borderTopWidth:1,borderColor:c.line}}>
-   <Tap testID="email-reply" label={t('email.reply')} disabled={s.offline} onPress={()=>void openCompose('reply')} style={{flex:1,minHeight:44,flexDirection:'row',gap:8,borderRadius:13,backgroundColor:c.blue}}><Icon name="reply" size={18} color={c.paper}/><T bold size={13} color={c.paper}>{t('email.reply')}</T></Tap>
-   <Tap testID="email-forward" label={t('email.forward')} disabled={!cards.some(m=>m.body.trim())} onPress={()=>{const last=[...cards].reverse().find(m=>m.body.trim());if(last)setForwardRequest({message:last,nonce:Date.now()})}} style={{flex:1,minHeight:44,flexDirection:'row',gap:8,borderRadius:13,borderWidth:1,borderColor:c.line,backgroundColor:c.paper}}><Icon name="forward" size={18} color={c.blue}/><T bold size={13} color={c.blue}>{t('email.forward')}</T></Tap>
+   <Tap testID="email-reply" label={t('email.reply')} disabled={s.offline} onPress={()=>void openCompose('reply')} style={{flex:1,minHeight:52,flexDirection:'row',gap:10,borderRadius:26,borderWidth:1,borderColor:c.lineBlue,backgroundColor:c.paper}}><Icon name="reply" size={20} color={c.blue}/><T heavy size={16} color={c.blue}>{t('email.reply')}</T></Tap>
+   <Tap testID="email-forward" label={t('email.forward')} disabled={!cards.some(m=>m.body.trim())} onPress={()=>{const last=[...cards].reverse().find(m=>m.body.trim());if(last)setForwardRequest({message:last,nonce:Date.now()})}} style={{flex:1,minHeight:52,flexDirection:'row',gap:10,borderRadius:26,borderWidth:1,borderColor:c.lineBlue,backgroundColor:c.paper}}><Icon name="forward" size={20} color={c.blue}/><T heavy size={16} color={c.blue}>{t('email.forward')}</T></Tap>
   </View>
   <MessageActions message={actionMessage} favorite={!!actionMessage&&(favoriteIds.has(favoriteIdentity(actionMessage))||favoriteIds.has(messageKey(actionMessage)))} onClose={()=>setActionMessage(null)} onFavorite={favoriteMessage} forwardRequest={forwardRequest}/>
   <Sheet title={t('chat.details')} visible={context} onClose={()=>setContext(false)}><T bold size={17}>{conversation.contact_name}</T><T size={13} selectable>{conversation.recipient}</T><T size={13} muted>{t('email.accountLine',{account:connection.label})}</T><T size={13}>{conversation.assignee?t('chat.assignee')+' '+conversation.assignee.name:t('filter.unassigned')}</T><Button quiet label={t('chat.contactHistory')} onPress={()=>{setContext(false);s.navigate('contact')}}/></Sheet>
