@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
 import {create} from 'zustand';
-import {accountStorageId,bootAccount,visibleAccounts} from '../src/store/demo-mode.ts';
+import {accountStorageId,bootAccount,visibleAccounts,e2eDemoBuild} from '../src/store/demo-mode.ts';
 import {ShakeDetector} from '../src/hooks/shake-detector.ts';
 import {newDeliveryFailure} from '../src/api/delivery-diagnostics.ts';
 import {HttpTransport} from '../src/api/http.ts';
@@ -40,7 +40,7 @@ function harness(accounts:Account[]=[],activeId:string|null=null){
  'expo-crypto':{},'expo-notifications':{},'../storage/disk':{openDisk:async(id:string)=>disk(id),deleteAccountDisk:async()=>{}},
  '../storage/vault':{readSession:async(id:string)=>sessions.get(id)||null,saveSession:async(id:string,s:Session)=>{sessions.set(id,s)},deleteSession:async(id:string)=>{sessions.delete(id)}},
  '../api/repository':{InboxRepository},'./chat-navigation':{ChatNavigation},'../api/mock':{MockTransport:CountedMock},'../api/fixtures':{demoAccounts},
- '../api/types':{defaultView},'./demo-mode':{accountStorageId,bootAccount}
+ '../api/types':{defaultView},'./demo-mode':{accountStorageId,bootAccount,e2eDemoBuild}
  };
  vm.runInNewContext(source,{exports,require:(name:string)=>{assert.ok(name in modules,name);return modules[name]},Date,URL,setTimeout,clearTimeout,performance,console});
  return {app:exports.useApp,disk,sessions,created:()=>fixturesCreated,metadata:()=>JSON.parse(metadata!)};
@@ -82,4 +82,14 @@ test('shake ignores ordinary motion and requires alternating impulses with coold
 test('isolated movement and repeating impulses do not unlock test mode',()=>{
  const shake=new ShakeDetector();assert.equal(shake.sample({x:0,y:0,z:1},0),false);
  for(const [n,x] of [[100,3],[1000,-3],[2000,3],[2100,6],[2200,9]])assert.equal(shake.sample({x,y:0,z:1},n),false);
+});
+
+test('the e2e demo flag is off unless the build sets it',()=>{
+  delete process.env.EXPO_PUBLIC_MAUTIC_E2E_DEMO;
+  assert.equal(e2eDemoBuild(),false);
+  process.env.EXPO_PUBLIC_MAUTIC_E2E_DEMO='0';
+  assert.equal(e2eDemoBuild(),false);
+  process.env.EXPO_PUBLIC_MAUTIC_E2E_DEMO='1';
+  assert.equal(e2eDemoBuild(),true);
+  delete process.env.EXPO_PUBLIC_MAUTIC_E2E_DEMO;
 });

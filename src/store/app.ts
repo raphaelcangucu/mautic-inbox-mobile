@@ -19,7 +19,7 @@ import {InboxRepository} from '../api/repository';
 import {ChatNavigation} from './chat-navigation';
 import {MockTransport} from '../api/mock';
 import {demoAccounts} from '../api/fixtures';
-import {accountStorageId,bootAccount} from './demo-mode';
+import {accountStorageId,bootAccount,e2eDemoBuild} from './demo-mode';
 import {defaultView, type Account, type Attachment, type Channel, type Conversation, type Message, type Preferences, type Template, type ViewState} from '../api/types';
 
 export type Route='inbox'|'search'|'chat'|'contact'|'assistant'|'contacts'|'accounts'|'connection'|'login'|'notifications'|'preferences'|'diagnostics';
@@ -56,6 +56,7 @@ export const useApp=create<State>((set,get)=>({
   demoUnlocked:false,connections:initialConnections,connectionDraft:null,ready:false,accounts:[],active:null,repo:null,transport:null,route:'inbox',theme:'light',view:defaultView(),conversations:[],messages:{},conversationId:0,draft:'',mode:'reply',attachment:null,cursor:null,replyMode:'public',syncing:false,refreshingList:false,offline:false,slow:false,error:'',toast:'',lastSync:0,listComplete:true,preferences:prefs,pushStatus:null,pushBusy:false,unseen:0,performance:[],
   boot:async()=>{
     try{const raw=await AsyncStorage.getItem(metadataKey);const meta:Metadata=raw?JSON.parse(raw):{accounts:[],activeId:null,theme:'light'};set({demoUnlocked:false,connections:meta.connections||initialConnections,accounts:meta.accounts,theme:meta.theme});
+      if(e2eDemoBuild()){await get().unlockDemo();const mock=get().accounts.find(x=>x.mode==='mock');if(mock){await get().switchAccount(mock);return}}
       const a=bootAccount(meta.accounts,meta.activeId);if(a)await get().switchAccount(a);else set({route:'accounts',connectionDraft:null});
     }catch(e){set({error:String(e),route:'accounts'})}finally{set({ready:true})}
   },
