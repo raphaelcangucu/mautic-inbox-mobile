@@ -11,7 +11,7 @@ import {CrmAutocomplete} from './CrmAutocomplete';
 import type {CrmOption} from './crm-catalogue';
 import type {Conversation,Page} from '../api/types';
 import {channelOptionLabel,startable,withStarted,type ChannelOption} from '../api/contact-channels';
-type ContactCard={id:number;name:string;email:string;phone:string;social_profiles?:SocialProfiles};
+export type ContactCard={id:number;name:string;email:string;phone:string;social_profiles?:SocialProfiles};
 type ContactDetail=ContactCard&{campaigns:{id:number;name:string}[];channels:ChannelOption[]};
 
 export function StartContactConversation({contactId}:{contactId:number}){

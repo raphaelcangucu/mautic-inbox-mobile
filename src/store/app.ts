@@ -22,7 +22,7 @@ import {demoAccounts} from '../api/fixtures';
 import {accountStorageId,bootAccount} from './demo-mode';
 import {defaultView, type Account, type Attachment, type Channel, type Conversation, type Message, type Preferences, type Template, type ViewState} from '../api/types';
 
-export type Route='inbox'|'chat'|'contact'|'assistant'|'contacts'|'accounts'|'connection'|'login'|'notifications'|'preferences'|'diagnostics';
+export type Route='inbox'|'search'|'chat'|'contact'|'assistant'|'contacts'|'accounts'|'connection'|'login'|'notifications'|'preferences'|'diagnostics';
 type Runtime={repo:InboxRepository;transport:MockTransport|HttpTransport};
 const runtimes=new Map<string,Promise<Runtime>>();const loggingOut=new Set<string>();const sendingChats=new Set<string>();
 async function runtime(a:Account){const storageId=accountStorageId(a);if(!runtimes.has(storageId))runtimes.set(storageId,(async()=>{const disk=await openDisk(storageId);const transport=a.mode==='mock'?new MockTransport(a,disk):new HttpTransport(a,()=>readSession(a.id),value=>saveSession(a.id,value),()=>{if(useApp.getState().active?.id===a.id)void useApp.getState().logout(false,true)});return {transport,repo:new InboxRepository(disk,transport,id=>evictConversation(a.id,id))}})());return runtimes.get(storageId)!}
