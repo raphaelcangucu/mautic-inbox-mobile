@@ -43,7 +43,7 @@ export function Top(){
    <Brand/>
    <View style={{flex:1,gap:1}}>
     <View style={{flexDirection:'row',gap:5,alignItems:'center'}}><T heavy size={15} line={20} numberOfLines={1} style={{flexShrink:1}}>{s.active?.name||'Mautic Inbox'}</T><Icon name="chevron-down" size={14} color={c.soft}/></View>
-    {!!s.active?.user.email&&<View style={{flexDirection:'row',gap:6,alignItems:'center'}}><View testID="availability-dot" style={{width:8,height:8,borderRadius:4,backgroundColor:s.offline?c.danger:c.ok}}/><T size={11} line={15} muted numberOfLines={1} style={{flexShrink:1}}>{s.active.user.email}</T></View>}
+    {!!s.active?.user.email&&<View style={{flexDirection:'row',gap:6,alignItems:'center'}}><View testID="availability-dot" style={{width:8,height:8,borderRadius:4,backgroundColor:s.offline||!s.available?c.danger:c.ok}}/><T size={11} line={15} muted numberOfLines={1} style={{flexShrink:1}}>{s.active.user.email}</T></View>}
    </View>
   </Tap>
   <Tap onPress={()=>s.navigate('search')} label={t("inbox.searchLabel")} testID="open-search" style={icon}><Icon name="search-outline" size={23} strokeWidth={1.9}/></Tap>
