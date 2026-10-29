@@ -1,8 +1,9 @@
 appId: com.distributionmachine.mauticinbox.demo
-name: API real 1.2.0 - navegacao somente leitura contra mkt-macro.on-forge.com
+name: API real 1.2.2 - navegacao contra mkt-macro.on-forge.com
 # Precisa de um build SEM EXPO_PUBLIC_MAUTIC_E2E_DEMO e de uma sessao ja iniciada no aparelho.
-# Nada aqui envia mensagem, assume, resolve, adia ou transfere: a producao nao muda de estado.
+# Nada aqui envia mensagem, assume, resolve, adia ou transfere: nenhuma conversa muda de estado.
 # O arrastar para o lado so revela as acoes e fecha de novo, sem toca-las.
+# A UNICA escrita e a disponibilidade do proprio atendente, no fim, e ela volta ao valor inicial.
 ---
 - launchApp
 
@@ -113,6 +114,27 @@ name: API real 1.2.0 - navegacao somente leitura contra mkt-macro.on-forge.com
 - tapOn:
     id: tab-accounts
 - takeScreenshot: 36-conta-real
+
+# Disponibilidade contra o servidor de verdade. O cartao so existe porque o config
+# anuncia capabilities.availability; sem isso a tela nem mostra o controle.
+- extendedWaitUntil:
+    visible:
+      id: availability-switch
+    timeout: 25000
+- takeScreenshot: 38-disponivel-real
+- tapOn:
+    id: availability-switch
+- takeScreenshot: 39-indisponivel-real
+- tapOn:
+    id: availability-switch
+- takeScreenshot: 39b-disponivel-de-novo
+
+# O cartao de disponibilidade empurra as preferencias para baixo da dobra.
+- scrollUntilVisible:
+    element:
+      id: account-preferences
+    direction: DOWN
+    timeout: 20000
 - tapOn:
     id: account-preferences
     optional: true
