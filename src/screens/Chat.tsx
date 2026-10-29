@@ -6,7 +6,7 @@ import {deliveryReport} from '../api/delivery-diagnostics';
 import {t} from '../i18n/engine';
 import {replyAccess} from '../api/reply-mode';
 import {OverlayModal} from '../components/OverlayModal';
-import {ConversationActions,type Panel,SnoozeChips} from '../components/ConversationActions';
+import {ConversationActions,type Panel,SnoozeChips,CannedChips} from '../components/ConversationActions';
 import {Sheet} from '../components/Sheet';
 import {WhatsQrConnections} from '../components/WhatsQrConnections';
 import {inspectQrConnection,qrConversation,qrNeedsRecovery,pairingLabel,type QrPairing} from '../api/whatsqr';
@@ -97,6 +97,7 @@ function ChatScreen(){
  <View ref={swipe.area} collapsable={false} onLayout={swipe.measure} {...swipe.panHandlers} testID="chat-swipe-back-area" style={{flex:1,backgroundColor:c.chat}}><FlatList ref={list} data={reversed} inverted renderItem={render} keyExtractor={item=>item.kind+':'+(item.display_id??item.id)} style={{flex:1}} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled" contentContainerStyle={{paddingHorizontal:12,paddingVertical:8}} maintainVisibleContentPosition={{minIndexForVisible:0}} onViewableItemsChanged={viewability} viewabilityConfig={{itemVisiblePercentThreshold:40}} onScroll={e=>{const event=e.nativeEvent;atEnd.current=event.contentOffset.y<80;if(!restoring.current)s.setView({chatOffsets:{...s.view.chatOffsets,[s.conversationId]:event.contentOffset.y}})}} scrollEventThrottle={160} onContentSizeChange={()=>{if(restoring.current&&s.view.chatOffsets[s.conversationId]===undefined)list.current?.scrollToOffset({offset:0,animated:false})}} ListFooterComponent={s.cursor?<Tap label={t("chat.older")} onPress={()=>void s.older()} style={{alignItems:'center',minHeight:44}}><T size={12} color={c.blue}>{t("chat.older")}</T></Tap>:null} ListEmptyComponent={<T muted>{t("chat.loadingHistory")}</T>}/></View>
  {s.unseen>0&&!atEnd.current&&<Button label={t("chat.newMessages",{count:s.unseen})} onPress={()=>{list.current?.scrollToOffset({offset:0,animated:true});useApp.setState({unseen:0});atEnd.current=true}}/>}
  {s.toast&&<View pointerEvents="none" testID="chat-feedback" style={{paddingHorizontal:16,paddingVertical:6,backgroundColor:c.tint}}><T size={11} color={c.blue}>{s.toast}</T></View>}
+ {s.mode==='reply'&&!s.draft.trim()&&<CannedChips/>}
  <View testID="compact-chat-composer" style={{backgroundColor:c.paper,paddingHorizontal:10,paddingVertical:10,borderTopWidth:1,borderColor:c.divider,gap:6}}>
  {s.attachment&&<View style={{flexDirection:'row',gap:8,alignItems:'center',paddingHorizontal:8}}><T size={12} style={{flex:1}}>{s.attachment.name} {s.active?.mode==='mock'?t("chat.mockUpload"):''}</T><Tap label={t("chat.removeAttachment")} onPress={()=>{if(s.active)void discardStagedAudio(accountStorageId(s.active),s.attachment?.uri);useApp.setState({attachment:null})}}><Icon name="close" size={16}/></Tap></View>}
  <View style={{flexDirection:'row',gap:6,alignItems:'flex-end'}}>

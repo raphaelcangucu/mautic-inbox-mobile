@@ -20,6 +20,24 @@ export function snoozeUntil(kind:'hour'|'tomorrow'|'monday'):string{
  return until.toISOString();
 }
 
+/** Respostas prontas em chips acima do compositor. Le o cache primeiro, para abrir a conversa
+ *  sem esperar a rede, e atualiza em segundo plano; inserir e o mesmo que o painel faz. */
+export function CannedChips(){
+ const s=useApp();const c=useTheme();const [canned,setCanned]=useState<CannedResponse[]>([]);
+ useEffect(()=>{let active=true;const repo=s.repo;if(!repo){setCanned([]);return}
+  void (async()=>{
+   const cache=await repo.disk.get<CannedResponse[]>('feature:canned');
+   if(active&&cache)setCanned(cache);
+   if(s.offline)return;
+   try{const result=await repo.api.request<{items:CannedResponse[]}>({method:'GET',path:'/inbox/mobile/canned-responses'});await repo.disk.put('feature:canned',result.items);if(active)setCanned(result.items)}catch{/* o cache ja serve */}
+  })().catch(()=>{});
+  return()=>{active=false}},[s.repo,s.active?.id,s.offline]);
+ if(!canned.length)return null;
+ return <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{maxHeight:44}} contentContainerStyle={{gap:8,paddingHorizontal:10,paddingBottom:8,alignItems:'center'}}>
+  {canned.map(item=><Tap key={item.id} testID={'canned-chip-'+item.id} label={item.name} onPress={()=>{const current=useApp.getState();current.setDraft(current.draft+(current.draft?'\n':'')+item.body)}} style={{height:36,minHeight:36,paddingHorizontal:14,justifyContent:'center',borderRadius:18,borderWidth:1,borderColor:c.lineBlue,backgroundColor:c.paper}}><T size={13} heavy color={c.blue} numberOfLines={1}>{item.name}</T></Tap>)}
+ </ScrollView>;
+}
+
 /** Chips de "Adiar ate" no topo das acoes, com o painel completo atras de "Escolher". */
 export function SnoozeChips({onChoose,disabled=false}:{onChoose:()=>void;disabled?:boolean}){
  const c=useTheme();const s=useApp();
