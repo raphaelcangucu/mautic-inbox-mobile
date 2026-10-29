@@ -6,7 +6,7 @@ import {deliveryReport} from '../api/delivery-diagnostics';
 import {t} from '../i18n/engine';
 import {replyAccess} from '../api/reply-mode';
 import {OverlayModal} from '../components/OverlayModal';
-import {ConversationActions,type Panel} from '../components/ConversationActions';
+import {ConversationActions,type Panel,SnoozeChips} from '../components/ConversationActions';
 import {Sheet} from '../components/Sheet';
 import {WhatsQrConnections} from '../components/WhatsQrConnections';
 import {inspectQrConnection,qrConversation,qrNeedsRecovery,pairingLabel,type QrPairing} from '../api/whatsqr';
@@ -123,6 +123,7 @@ function ChatScreen(){
   {quickAction(t("chat.transferShort"),'arrow-up',()=>setPanel('transfer'),{testID:'quick-transfer'})}
   {quickAction(t("chat.take"),'person-outline',take,{testID:'quick-take',disabled:s.offline||(s.active?.mode==='live'&&!access.take)})}
  </View>
+   <SnoozeChips disabled={s.offline} onChoose={()=>setPanel('snooze')}/>
  <View>
  {actionRow(t('message.favorites'),'star',()=>void showFavorites().catch(()=>{setMenu(false);s.notify(t('message.favoriteError'))}),{testID:'open-message-favorites'})}
  {actionRow(t("chat.canned"),'chatbubbles-outline',()=>setPanel('canned'),{testID:'open-canned'})}

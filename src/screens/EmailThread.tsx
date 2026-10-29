@@ -10,7 +10,7 @@ import {channels,messageKey,type Message} from '../api/types';
 import {visibleChatMessages} from '../components/chat-timeline';
 import {EmailCard} from '../components/EmailCard';
 import {MessageActions} from '../components/MessageActions';
-import {ConversationActions,type Panel} from '../components/ConversationActions';
+import {ConversationActions,type Panel,SnoozeChips} from '../components/ConversationActions';
 import {Sheet} from '../components/Sheet';
 import {T,Tap,Icon,Button} from '../components/ui';
 import {useSwipeBack} from '../hooks/useSwipeBack';
@@ -99,6 +99,7 @@ export function EmailThread(){
     {quickAction(t('chat.transferShort'),'arrow-up',()=>setPanel('transfer'),{testID:'quick-transfer'})}
     {quickAction(t('chat.take'),'person-outline',take,{testID:'quick-take',disabled:s.offline||(s.active?.mode==='live'&&!access.take)})}
    </View>
+   <SnoozeChips disabled={s.offline} onChoose={()=>setPanel('snooze')}/>
    <View>
     {row(t('email.reply'),'reply',()=>void openCompose('reply'),'menu-email-reply')}
     {row(t('chat.note'),'lock-closed-outline',()=>void openCompose('note'),'menu-email-note')}

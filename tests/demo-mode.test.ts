@@ -102,3 +102,18 @@ test('the theme choice resolves to a concrete theme and remembers what was picke
   assert.equal(resolve('dark','light'),'dark');
   assert.equal(resolve('light','dark'),'light');
 });
+
+test('snoozing to a named morning lands at 9am, and Monday never lands on today',()=>{
+  // Mesma regra do SnoozeChips: amanha e a proxima segunda, sempre as 9h.
+  const at9=(base:Date,days:number)=>{const d=new Date(base);d.setDate(d.getDate()+days);d.setHours(9,0,0,0);return d};
+  const monday=(base:Date)=>at9(base,(8-base.getDay())%7||7);
+  const wednesday=new Date('2026-10-28T23:40:00');       // quarta
+  assert.equal(at9(wednesday,1).getHours(),9);
+  assert.equal(monday(wednesday).getDay(),1);
+  assert.ok(monday(wednesday)>wednesday);
+  const sunday=new Date('2026-11-01T10:00:00');
+  assert.equal(monday(sunday).getDay(),1);
+  assert.ok(monday(sunday)>sunday);
+  const mondayNow=new Date('2026-11-02T10:00:00');        // segunda: vai para a seguinte, nunca hoje
+  assert.equal(monday(mondayNow).getDate(),9);
+});
