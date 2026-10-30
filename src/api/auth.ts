@@ -31,6 +31,18 @@ export async function deviceLogin(config:MobileConfig,onCode:(value:{code:string
  throw new ApiError(401,'device_expired',t("auth.deviceExpired"));
 }
 
+/** Direct sign-in for operators whose instance sends no mail and who cannot reach the browser page. */
+export async function passwordLogin(config:MobileConfig,identifier:string,secret:string,fetcher:typeof fetch=fetch):Promise<LoginResult>{
+ if(config.capabilities.password_login!==true)throw new ApiError(422,'password_unavailable',t("auth.passwordUnavailable"));
+ const abort=new AbortController();const timer=setTimeout(()=>abort.abort(),20000);
+ try{const response=await fetcher(config.token_endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({grant_type:'password',username:identifier.trim(),password:secret}),redirect:'error',signal:abort.signal});const raw=await response.json();
+  // One code per outcome, so the text comes from the catalogue and not from the server.
+  if(!response.ok){const code=raw.error==='second_factor_required'?'second_factor_required':response.status===429||raw.error==='rate_limited'?'password_rate_limited':'password_refused';throw new ApiError(response.status,code,t(code==='second_factor_required'?"auth.secondFactor":code==='password_rate_limited'?"auth.passwordRate":"auth.passwordInvalid"))}
+  if(typeof raw.access_token!=='string'||typeof raw.refresh_token!=='string'||!Number.isFinite(raw.expires_in)||raw.expires_in<=0||!Number.isSafeInteger(raw.user?.id)||raw.user.id<1||typeof raw.user.email!=='string')throw new ApiError(502,'invalid_login_response',t("auth.invalidLoginResponse"));
+  return result(raw);
+ }finally{clearTimeout(timer)}
+}
+
 export async function magicProof(config:MobileConfig){
  const auth=new AuthRequest({clientId:'mautic-inbox-native',redirectUri:config.redirect_uri,responseType:ResponseType.Code,usePKCE:true,state:Crypto.randomUUID()});
  await auth.makeAuthUrlAsync({authorizationEndpoint:config.authorization_endpoint});
