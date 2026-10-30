@@ -2,13 +2,13 @@
   "expo": {
     "name": "Mautic Inbox",
     "slug": "mautic-inbox-mobile",
-    "version": "1.2.2",
+    "version": "1.2.3",
     "orientation": "portrait",
     "scheme": "mautic-inbox-demo",
     "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.distributionmachine.mauticinbox.demo",
-      "versionCode": 22,
+      "versionCode": 23,
       "softwareKeyboardLayoutMode": "resize",
       "allowBackup": false,
       "adaptiveIcon": {
@@ -26,7 +26,7 @@
       "bundleIdentifier": "com.distributionmachine.mauticinbox.demo",
       "supportsTablet": true,
       "appleTeamId": "SB6QYUH97U",
-      "buildNumber": "47",
+      "buildNumber": "48",
       "privacyManifests": {
         "NSPrivacyTracking": false,
         "NSPrivacyTrackingDomains": [],
