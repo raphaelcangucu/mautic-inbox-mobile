@@ -3,7 +3,7 @@ import {LanguageSelector} from '../components/LanguageSelector';
 import {formatTime,formatDay,formatDateTime,formatNumber} from '../i18n/engine';
 import {t} from '../i18n/engine';
 import {WhatsQrConnections} from '../components/WhatsQrConnections';
-import {ContactDirectory,StartContactConversation} from '../components/ContactDirectory';
+import {ContactDirectory,ContactDoNotDisturb,StartContactConversation} from '../components/ContactDirectory';
 import {ConversationActions,type Panel} from '../components/ConversationActions';
 import {discover,HttpTransport,type MobileConfig} from '../api/http';
 import {browserLogin,deviceLogin,magicProof,passwordLogin} from '../api/auth';
@@ -43,7 +43,7 @@ export function Contact(){
  <Card style={{marginVertical:12,gap:0}}><T size={13} bold style={{marginBottom:10}}>{t("contact.relationship")}</T><DetailRow label={t("contact.assignee")} value={p.assignee?.id===s.active?.user.id?t("common.you"):p.assignee?.name||t("filter.unassigned")}/><SocialProfileLinks contact={p.contact} conversation={p}/><DetailRow label={t("contact.source")} value={channels[p.channel]||p.channel}/><DetailRow label={t("contact.lastActivity")} value={formatTime(p.last_message_at)}/></Card>
  <Card style={{marginVertical:0,gap:0}}><T size={13} bold style={{marginBottom:10}}>{t("contact.context")}</T><DetailRow label={p.kind==='comments'?t("chat.originalPost"):t("contact.sourceCampaign")} value={p.origins.campaign}/>{p.campaigns?.map(campaign=><DetailRow key={campaign} label={t("contact.membership")} value={campaign}/>)}{p.segments?.map(segment=><DetailRow key={segment} label={t("contact.segment")} value={segment}/>)}<DetailRow label={t("contact.title")} value={p.contact?.phone||p.recipient}/>{p.origins.page&&<><DetailRow label={t("contact.sourcePage")} value={p.origins.page}/><DetailRow label="utm_source" value={p.origins.utm_source||'—'}/><DetailRow label="utm_campaign" value={p.origins.utm_campaign||'—'}/></>}</Card>
  <Card style={{marginVertical:12,gap:0}}><T size={13} bold style={{marginBottom:10}}>{t("contact.history")}</T><DetailRow label={t("contact.current")} value={p.lifecycle==='resolved'?t("contact.resolved"):t("contact.active")}/><DetailRow label={t("chat.reply")} value={p.needs_response?t("contact.pending"):t("contact.answered")}/><DetailRow label={t("contact.support")} value={p.mobile.ai?t("common.aiAgent"):t("contact.team")}/></Card>
- {!!p.contact?.id&&<StartContactConversation contactId={p.contact.id}/>}
+ {!!p.contact?.id&&<><StartContactConversation contactId={p.contact.id}/><ContactDoNotDisturb contactId={p.contact.id}/></>}
  {/* A barra de icones do topo ja leva a conversa, ao assistente e ao painel do CRM.
      Repetir as tres como botoes de largura inteira no fim da rolagem so dizia a
      mesma coisa duas vezes, com mais peso embaixo do que em cima. */}
