@@ -2,10 +2,11 @@ import {t} from '../i18n/engine.ts';
 import {clearAccountAudio,discardStagedAudio} from '../voice/files';
 import {newDeliveryFailure} from '../api/delivery-diagnostics';
 import {initialReplyMode} from '../api/reply-mode';
+import {pushPreview} from '../api/email';
 import {syncPushAccounts} from '../api/push-accounts';
 import {create} from 'zustand';
-import {Platform} from 'react-native';
-import {HttpTransport,type MobileConfig} from '../api/http';
+import {Platform,Appearance} from 'react-native';
+import {HttpTransport,discover,type MobileConfig} from '../api/http';
 import type {LoginResult} from '../api/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Crypto from 'expo-crypto';
@@ -18,10 +19,10 @@ import {InboxRepository} from '../api/repository';
 import {ChatNavigation} from './chat-navigation';
 import {MockTransport} from '../api/mock';
 import {demoAccounts} from '../api/fixtures';
-import {accountStorageId,bootAccount} from './demo-mode';
+import {accountStorageId,bootAccount,e2eDemoBuild} from './demo-mode';
 import {defaultView, type Account, type Attachment, type Channel, type Conversation, type Message, type Preferences, type Template, type ViewState} from '../api/types';
 
-export type Route='inbox'|'chat'|'contact'|'assistant'|'contacts'|'accounts'|'connection'|'login'|'notifications'|'preferences'|'diagnostics';
+export type Route='inbox'|'search'|'chat'|'contact'|'assistant'|'contacts'|'accounts'|'connection'|'login'|'notifications'|'preferences'|'diagnostics';
 type Runtime={repo:InboxRepository;transport:MockTransport|HttpTransport};
 const runtimes=new Map<string,Promise<Runtime>>();const loggingOut=new Set<string>();const sendingChats=new Set<string>();
 async function runtime(a:Account){const storageId=accountStorageId(a);if(!runtimes.has(storageId))runtimes.set(storageId,(async()=>{const disk=await openDisk(storageId);const transport=a.mode==='mock'?new MockTransport(a,disk):new HttpTransport(a,()=>readSession(a.id),value=>saveSession(a.id,value),()=>{if(useApp.getState().active?.id===a.id)void useApp.getState().logout(false,true)});return {transport,repo:new InboxRepository(disk,transport,id=>evictConversation(a.id,id))}})());return runtimes.get(storageId)!}
@@ -29,7 +30,10 @@ const prefs:Preferences={sound:true,vibration:true,preview:false,quiet:false,gro
 export type SavedConnection={name:string;origin:string};
 const initialConnections:SavedConnection[]=[{name:'Macro Markets',origin:'https://mkt-macro.on-forge.com'}];
 const metadataKey='mautic-inbox-accounts-v2';
-type Metadata={connections?:SavedConnection[];accounts:Account[];activeId:string|null;theme:'light'|'dark'};
+type Metadata={connections?:SavedConnection[];accounts:Account[];activeId:string|null;theme:'light'|'dark';themeChoice?:ThemeChoice};
+export type ThemeChoice='system'|'light'|'dark';
+const systemTheme=():'light'|'dark'=>Appearance.getColorScheme()==='dark'?'dark':'light';
+const resolveTheme=(choice:ThemeChoice):'light'|'dark'=>choice==='system'?systemTheme():choice;
 const chatNavigation=new ChatNavigation();
 let generation=0;let draftTimer:ReturnType<typeof setTimeout>|undefined;let draftFlush:(()=>Promise<void>)|undefined;
 export async function flushDraft(){if(draftTimer)clearTimeout(draftTimer);const job=draftFlush;draftFlush=undefined;await job?.()}
@@ -41,20 +45,21 @@ function evictConversation(accountId:string,id:number){
  if(view.lastChat===id)delete view.lastChat;delete view.chatOffsets[id];delete view.chatAnchors[id];
  useApp.setState({messages,view,conversations:s.conversations.filter(c=>c.id!==id),...(s.conversationId===id?{route:'inbox',conversationId:0,draft:'',attachment:null,cursor:null,error:'',toast:''}:{})});
 }
-async function persistMeta(){const s=useApp.getState();await AsyncStorage.setItem(metadataKey,JSON.stringify({connections:s.connections,accounts:s.accounts,activeId:s.active?.id||null,theme:s.theme}))}
+async function persistMeta(){const s=useApp.getState();await AsyncStorage.setItem(metadataKey,JSON.stringify({connections:s.connections,accounts:s.accounts,activeId:s.active?.id||null,theme:s.theme,themeChoice:s.themeChoice}))}
 type State={
-  demoUnlocked:boolean;unlockDemo:()=>Promise<void>;hideDemo:()=>Promise<void>;connections:SavedConnection[];connectionDraft:SavedConnection|null;saveConnection:(value:SavedConnection)=>Promise<void>;configure:(value?:SavedConnection)=>void;ready:boolean;accounts:Account[];active:Account|null;repo:InboxRepository|null;transport:MockTransport|HttpTransport|null;route:Route;theme:'light'|'dark';view:ViewState;
+  demoUnlocked:boolean;unlockDemo:()=>Promise<void>;hideDemo:()=>Promise<void>;connections:SavedConnection[];connectionDraft:SavedConnection|null;saveConnection:(value:SavedConnection)=>Promise<void>;configure:(value?:SavedConnection)=>void;ready:boolean;accounts:Account[];active:Account|null;repo:InboxRepository|null;transport:MockTransport|HttpTransport|null;route:Route;theme:'light'|'dark';themeChoice:ThemeChoice;available:boolean;view:ViewState;
   conversations:Conversation[];messages:Record<number,Message[]>;conversationId:number;draft:string;mode:'reply'|'note';attachment:Attachment|null;cursor:string|null;replyMode:'public'|'private';
   syncing:boolean;refreshingList:boolean;offline:boolean;slow:boolean;error:string;toast:string;lastSync:number;listComplete:boolean;preferences:Preferences;pushStatus:PushStatus|null;pushBusy:boolean;refreshPush:()=>Promise<void>;enablePush:(enabled:boolean)=>Promise<void>;testPush:()=>Promise<void>;unseen:number;performance:number[];
   boot:()=>Promise<void>;switchAccount:(a:Account)=>Promise<void>;connect:(config:MobileConfig,result:LoginResult,name:string)=>Promise<void>;logout:(remove?:boolean,localOnly?:boolean)=>Promise<void>;
   navigate:(r:Route)=>void;back:()=>void;sync:(force?:boolean,showRefresh?:boolean)=>Promise<void>;moreConversations:()=>Promise<void>;openChat:(id:number)=>Promise<void>;older:()=>Promise<void>;read:()=>Promise<void>;
-  setView:(patch:Partial<ViewState>)=>void;setDraft:(text:string)=>void;setMode:(mode:'reply'|'note')=>Promise<void>;send:(template?:Template,variables?:Record<string,string>)=>Promise<boolean>;
-  retryMessage:(message:Message)=>Promise<boolean>;transition:(action:string,payload?:Record<string,unknown>)=>Promise<boolean>;feature:(endpoint:string,payload:Record<string,unknown>)=>Promise<boolean>;themeToggle:()=>void;toggleOffline:()=>void;toggleSlow:()=>void;inject:()=>Promise<void>;toggleWindow:()=>Promise<void>;setPreferences:(patch:Partial<Preferences>)=>void;notify:(message:string)=>void;
+  setView:(patch:Partial<ViewState>)=>void;setDraft:(text:string)=>void;setMode:(mode:'reply'|'note')=>Promise<void>;send:(template?:Template,variables?:Record<string,string>,subject?:string)=>Promise<boolean>;
+  retryMessage:(message:Message)=>Promise<boolean>;transition:(action:string,payload?:Record<string,unknown>,conversationId?:number)=>Promise<boolean>;feature:(endpoint:string,payload:Record<string,unknown>)=>Promise<boolean>;themeToggle:()=>void;setThemeChoice:(choice:ThemeChoice)=>void;setAvailable:(value:boolean)=>Promise<void>;loadAvailability:()=>Promise<void>;refreshConfig:()=>Promise<void>;toggleOffline:()=>void;toggleSlow:()=>void;inject:()=>Promise<void>;toggleWindow:()=>Promise<void>;setPreferences:(patch:Partial<Preferences>)=>void;notify:(message:string)=>void;
 };
 export const useApp=create<State>((set,get)=>({
-  demoUnlocked:false,connections:initialConnections,connectionDraft:null,ready:false,accounts:[],active:null,repo:null,transport:null,route:'inbox',theme:'light',view:defaultView(),conversations:[],messages:{},conversationId:0,draft:'',mode:'reply',attachment:null,cursor:null,replyMode:'public',syncing:false,refreshingList:false,offline:false,slow:false,error:'',toast:'',lastSync:0,listComplete:true,preferences:prefs,pushStatus:null,pushBusy:false,unseen:0,performance:[],
+  demoUnlocked:false,connections:initialConnections,connectionDraft:null,ready:false,accounts:[],active:null,repo:null,transport:null,route:'inbox',theme:'light',themeChoice:'light',available:true,view:defaultView(),conversations:[],messages:{},conversationId:0,draft:'',mode:'reply',attachment:null,cursor:null,replyMode:'public',syncing:false,refreshingList:false,offline:false,slow:false,error:'',toast:'',lastSync:0,listComplete:true,preferences:prefs,pushStatus:null,pushBusy:false,unseen:0,performance:[],
   boot:async()=>{
-    try{const raw=await AsyncStorage.getItem(metadataKey);const meta:Metadata=raw?JSON.parse(raw):{accounts:[],activeId:null,theme:'light'};set({demoUnlocked:false,connections:meta.connections||initialConnections,accounts:meta.accounts,theme:meta.theme});
+    try{const raw=await AsyncStorage.getItem(metadataKey);const meta:Metadata=raw?JSON.parse(raw):{accounts:[],activeId:null,theme:'light'};const choice:ThemeChoice=meta.themeChoice??meta.theme??'light';set({demoUnlocked:false,connections:meta.connections||initialConnections,accounts:meta.accounts,themeChoice:choice,theme:resolveTheme(choice)});
+      if(e2eDemoBuild()){await get().unlockDemo();const mock=get().accounts.find(x=>x.mode==='mock');if(mock){await get().switchAccount(mock);return}}
       const a=bootAccount(meta.accounts,meta.activeId);if(a)await get().switchAccount(a);else set({route:'accounts',connectionDraft:null});
     }catch(e){set({error:String(e),route:'accounts'})}finally{set({ready:true})}
   },
@@ -63,10 +68,10 @@ export const useApp=create<State>((set,get)=>({
   switchAccount:async(a)=>{
     if(a.mode==='mock'&&!get().demoUnlocked){get().notify(t("demo.locked"));return}
     if(a.mode!=='mock'&&a.mode!=='live')return;
-    chatNavigation.invalidate();await flushDraft();const epoch=++generation;set({pushStatus:null,pushBusy:false,active:a,repo:null,transport:null,conversations:[],messages:{},conversationId:0,draft:'',mode:'reply',attachment:null,view:defaultView(),syncing:false,refreshingList:false,lastSync:0,listComplete:true,error:'',offline:false,slow:false,unseen:0,route:'accounts'});
+    chatNavigation.invalidate();await flushDraft();const epoch=++generation;set({pushStatus:null,pushBusy:false,active:a,repo:null,transport:null,conversations:[],messages:{},conversationId:0,draft:'',mode:'reply',attachment:null,view:defaultView(),syncing:false,refreshingList:false,lastSync:0,listComplete:true,error:'',offline:false,slow:false,available:true,unseen:0,route:'accounts'});
     const session=await readSession(accountStorageId(a));if(epoch!==generation)return;
     if(!session||(session.expiresAt<Date.now()&&!session.refreshToken)){set({active:{...a,expired:true},route:'login'});return}
-    try{const {repo,transport}=await runtime(a);if(transport instanceof MockTransport){transport.offline=false;transport.latency=180;}await repo.recover();const [list,view,settings,lastSync,listComplete]=await Promise.all([repo.cachedList(),repo.view(),repo.disk.get<Preferences>('ui:preferences'),repo.disk.get<number>('sync:last'),repo.disk.get<boolean>('sync:list-complete')]);if(epoch!==generation)return;set({repo,transport,conversations:list,view,conversationId:Number.isSafeInteger(view.lastChat)&&Number(view.lastChat)>0?Number(view.lastChat):0,preferences:settings||prefs,lastSync:lastSync||0,listComplete:listComplete!==false,route:'inbox'});await persistMeta();void get().sync();}
+    try{const {repo,transport}=await runtime(a);if(transport instanceof MockTransport){transport.offline=false;transport.latency=180;}await repo.recover();const [list,view,settings,lastSync,listComplete]=await Promise.all([repo.cachedList(),repo.view(),repo.disk.get<Preferences>('ui:preferences'),repo.disk.get<number>('sync:last'),repo.disk.get<boolean>('sync:list-complete')]);if(epoch!==generation)return;set({repo,transport,conversations:list,view,conversationId:Number.isSafeInteger(view.lastChat)&&Number(view.lastChat)>0?Number(view.lastChat):0,preferences:settings||prefs,lastSync:lastSync||0,listComplete:listComplete!==false,route:'inbox'});await persistMeta();void get().sync();void get().loadAvailability();void get().refreshConfig();}
     catch(e){if(epoch===generation)set({error:String(e),route:'accounts'})}
   },
   connect:async(config,result,name)=>{const id=await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256,config.origin+'|'+result.user.id);const a:Account={id,origin:config.origin,name:name||config.name,user:result.user,config,mode:'live'};await saveSession(id,result.session);set({accounts:[...get().accounts.filter(x=>x.id!==id),a]});await get().switchAccount(a);await persistMeta()},
@@ -83,7 +88,7 @@ export const useApp=create<State>((set,get)=>({
           const identifier='inbox-'+s.active.id+'-'+(s.preferences.grouped!==false?notification.state_id:notification.id);const channelId='inbox-'+s.active.id+'-'+Number(s.preferences.sound)+Number(s.preferences.vibration);
           if(Platform.OS==='android')await Notifications.setNotificationChannelAsync(channelId,{name:s.active.name,importance:Notifications.AndroidImportance.HIGH,sound:s.preferences.sound?'default':null,enableVibrate:s.preferences.vibration});
           if(s.preferences.grouped!==false)await Notifications.dismissNotificationAsync(identifier);
-          await Notifications.scheduleNotificationAsync({identifier,content:{title:s.active.name+' · '+conversation.contact_name,body:s.preferences.preview?conversation.preview:t("push.newMessage"),data,sound:s.preferences.sound&&!s.preferences.quiet},trigger:Platform.OS==='android'?{channelId}:null});
+          await Notifications.scheduleNotificationAsync({identifier,content:{title:s.active.name+' · '+conversation.contact_name,body:s.preferences.preview?pushPreview(conversation):t("push.newMessage"),data,sound:s.preferences.sound&&!s.preferences.quiet},trigger:Platform.OS==='android'?{channelId}:null});
         }
         if(epoch===generation)await s.repo.disk.put('notification:cursor',batch.notification_cursor);
       }
@@ -105,7 +110,7 @@ export const useApp=create<State>((set,get)=>({
   setView:patch=>{const view={...get().view,...patch};set({view});void get().repo?.disk.put('ui:view',view)},
   setDraft:text=>{chatNavigation.editedDraft();set({draft:text});const s=get();if(!s.repo)return;const key='draft:'+s.conversationId+':'+s.mode;draftFlush=()=>s.repo!.disk.put(key,text);if(draftTimer)clearTimeout(draftTimer);draftTimer=setTimeout(()=>{void flushDraft()},120)},
   setMode:async mode=>{const s=get();if(!s.repo)return;const epoch=generation;await chatNavigation.changeMode(s.conversationId,mode,s.repo,{flushDraft,valid:()=>epoch===generation&&get().repo===s.repo&&get().route==='chat'&&get().conversationId===s.conversationId,apply:draft=>set({mode,draft,attachment:null})})},
-  send:async(template,variables)=>{
+  send:async(template,variables,subject)=>{
     const s=get();const epoch=generation;
     if(!s.repo||s.offline){get().notify(t("store.offlineDraft"));return false}
     const key=s.active?.id+':'+s.conversationId+':'+s.mode;
@@ -118,8 +123,8 @@ export const useApp=create<State>((set,get)=>({
       let body=s.draft.trim();if(template)body=template.preview.replace(/\{\{(\w+)\}\}/g,(_,token)=>variables?.['BODY:'+token]||'');
       if(!body&&!s.attachment)return false;
       const id=Crypto.randomUUID().replace(/-/g,'');
-      const entry={request_id:id,conversationId:s.conversationId,body:body||s.attachment!.name,mode:s.mode,timestamp:new Date().toISOString(),status:'sending' as const,...(template?{template_id:template.id,variables}:{}),...(s.attachment?{attachment:s.attachment}:{}),replyMode:s.replyMode};
-      const local:Message={kind:s.mode==='note'?'note':'outbound',id:'local-'+id,request_id:id,body:entry.body,timestamp:entry.timestamp,status:'sending',direction:'outbound',attachment:s.attachment||undefined};
+      const entry={request_id:id,conversationId:s.conversationId,body:body||s.attachment!.name,mode:s.mode,timestamp:new Date().toISOString(),status:'sending' as const,...(template?{template_id:template.id,variables}:{}),...(s.attachment?{attachment:s.attachment}:{}),replyMode:s.replyMode,...(s.mode==='reply'&&subject?.trim()?{subject:subject.trim()}:{})};
+      const local:Message={kind:s.mode==='note'?'note':'outbound',id:'local-'+id,request_id:id,body:entry.body,timestamp:entry.timestamp,status:'sending',direction:'outbound',attachment:s.attachment||undefined,...(entry.subject?{subject:entry.subject}:{})};
       // Clear the captured composer synchronously, before any network or disk wait.
       set({draft:'',attachment:null,messages:{...get().messages,[s.conversationId]:[...(get().messages[s.conversationId]||[]),local]}});
       const clearing=s.repo.disk.put('draft:'+s.conversationId+':'+s.mode,'').catch(()=>{});
@@ -149,9 +154,23 @@ export const useApp=create<State>((set,get)=>({
       finally{sendingChats.delete(key)}
     }
   },
-  transition:async(action,payload={})=>{const s=get();const c=s.conversations.find(c=>c.id===s.conversationId);if(!s.repo||!c||s.offline){get().notify(t("store.connectChange"));return false}const epoch=generation;try{const fresh=await s.repo.transition(c.id,c.version,action,payload);if(epoch===generation)set({conversations:get().conversations.map(c=>c.id===fresh.id?fresh:c)});if(epoch!==generation)return false;get().notify(action==='take'?t("store.taken"):t("store.updated"));return true}catch(e){if(epoch===generation){get().notify(e instanceof Error?e.message:String(e));await get().sync()}return false}},
+  // `conversationId` deixa a lista agir numa linha sem abri-la; sem ele vale a conversa aberta.
+  transition:async(action,payload={},conversationId)=>{const s=get();const c=s.conversations.find(c=>c.id===(conversationId??s.conversationId));if(!s.repo||!c||s.offline){get().notify(t("store.connectChange"));return false}const epoch=generation;try{const fresh=await s.repo.transition(c.id,c.version,action,payload);if(epoch===generation)set({conversations:get().conversations.map(c=>c.id===fresh.id?fresh:c)});if(epoch!==generation)return false;get().notify(action==='take'?t("store.taken"):t("store.updated"));return true}catch(e){if(epoch===generation){get().notify(e instanceof Error?e.message:String(e));await get().sync()}return false}},
   feature:async(endpoint,payload)=>{const s=get();const c=s.conversations.find(x=>x.id===s.conversationId);if(!s.repo||!c||s.offline){s.notify(t("store.connectChange"));return false}const epoch=generation;try{const updated=await s.repo.api.request<Conversation>({method:'POST',path:`/inbox/${endpoint==='moderation'?'mobile':'api'}/conversations/${c.id}/${endpoint}`,body:{...payload,version:c.version}});await s.repo.saveConversations([updated]);if(epoch!==generation)return false;set({conversations:get().conversations.map(x=>x.id===updated.id?updated:x)});await get().sync();get().notify(s.active?.mode==='mock'?t("store.demoSaved"):t("store.saved"));return true}catch(e){if(epoch===generation){get().notify(e instanceof Error?e.message:String(e));await get().sync()}return false}},
-  themeToggle:()=>{set({theme:get().theme==='light'?'dark':'light'});void persistMeta()},
+  themeToggle:()=>{get().setThemeChoice(get().theme==='light'?'dark':'light')},
+  setThemeChoice:choice=>{set({themeChoice:choice,theme:resolveTheme(choice)});void persistMeta()},
+  // A disponibilidade vive no servidor: sem confirmacao dele o interruptor volta ao que era.
+  /** O config fica guardado desde o login: sem reler, uma capability nova so chegaria ao app com um novo acesso. */
+  refreshConfig:async()=>{const s=get();const a=s.active;if(a?.mode!=='live')return;const epoch=generation;
+   try{const config=await discover(a.origin);if(epoch!==generation||get().active?.id!==a.id||JSON.stringify(config)===JSON.stringify(a.config))return;
+    const next={...a,config};set({active:next,accounts:get().accounts.map(x=>x.id===a.id?next:x)});await persistMeta();void get().loadAvailability()}
+   catch{/* sem resposta, o config guardado continua valendo */}},
+  loadAvailability:async()=>{const s=get();if(s.active?.config?.capabilities?.availability!==true||!s.repo)return;const epoch=generation;const repo=s.repo;
+   try{const fresh=await repo.api.request<{available:boolean}>({method:'GET',path:'/inbox/mobile/availability'});if(epoch===generation&&get().repo===repo)set({available:fresh.available!==false})}catch{/* sem resposta, o controle fica no otimista */}},
+  setAvailable:async value=>{const s=get();if(!s.repo||s.offline){s.notify(t("store.connectChange"));return}
+   const previous=s.available;set({available:value});
+   try{const fresh=await s.repo.api.request<{available:boolean}>({method:'POST',path:'/inbox/mobile/availability',body:{available:value}});set({available:fresh.available!==false})}
+   catch(e){set({available:previous});get().notify(e instanceof Error?e.message:String(e))}},
   toggleOffline:()=>{const value=!get().offline;if(get().transport instanceof MockTransport)(get().transport as MockTransport).offline=value;set({offline:value});if(!value)void get().sync()},
   toggleSlow:()=>{const value=!get().slow;if(get().transport instanceof MockTransport)(get().transport as MockTransport).latency=value?1200:180;set({slow:value})},
   inject:async()=>{const s=get();if(!(s.transport instanceof MockTransport)||!s.repo||s.offline)return;const epoch=generation;await s.transport.inject(s.conversationId);await s.repo.poll(s.conversationId);const [items,conversations]=await Promise.all([s.repo.cachedMessages(s.conversationId),s.repo.cachedList()]);if(epoch!==generation)return;set({messages:{...get().messages,[s.conversationId]:items},conversations,unseen:get().unseen+1});get().notify(t("store.demoNewMessage"))},

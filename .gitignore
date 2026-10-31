@@ -47,6 +47,9 @@ google-services.json
 /e2e/
 /docs/*
 !/docs/ASSETS-PUBLICACAO-PROXIMAS-VERSOES.md
+# Approved designs and handovers are kept for the next machine.
+!/docs/design/
+!/docs/handover/
 /fastlane/screenshots/
 /fastlane/android-metadata/*/images/
 /fastlane/product-assets-ios/reviewed-*.json
@@ -92,6 +95,17 @@ google-services.json
 !/e2e/flows/
 /e2e/flows/*
 !/e2e/flows/live-without-demo.yaml
+
+# E-mail channel (1.1.0): demo-mode Maestro flows and their emulator runner
+!/e2e/flows/email/
+
+# Novo layout (1.2.0): o passeio contra a API real, o que exercita as acoes novas e o runner iOS
+!/e2e/flows/api-real.yaml
+!/e2e/flows/acoes-novas.yaml
+!/e2e/flows/novo-layout.yaml
+!/e2e/flows/novo-layout-ios.sh
+# ...and the live flows against a local Mautic bench (e2e build only)
+!/e2e/flows/email-live/
 
 # Reusable read-only swipe navigation validation
 !/e2e/flows/ios-swipe-back.yaml

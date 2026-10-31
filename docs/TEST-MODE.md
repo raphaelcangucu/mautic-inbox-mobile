@@ -31,3 +31,9 @@ Validação da 1.0.1: 109 testes do app, 21 testes das ferramentas de publicaç�
 O Moto g56 5G conectado por USB passou no fluxo `live-without-demo.yaml` com o APK 1.0.1 (12) derivado do AAB auditado do commit `63f28e5`. Conexões, Assistente e Preferências foram conferidos com a sessão real já existente: contas mockadas e controles demo ocultos, compositor do assistente compacto com configuração de IA no cabeçalho, e teste de notificação local ausente na conta real. As capturas e o relatório ficam nos artefatos locais de QA, sem dados de conta no Git.
 
 O serviço de sensores confirmou acesso ao acelerômetro, inscrição em Conexões e remoção ao trocar de tela. O movimento físico abrindo o painel Modo de teste ainda não foi confirmado. A tag `qa/android-1.0.1-build12` registra esta conferência, sem mudar a tag de aplicação `v1.0.1` e sem envio às lojas. Mudanças posteriores de WhatsQR na pasta de trabalho não fazem parte do binário conferido.
+
+## Canal de e-mail (1.1.0)
+
+As contas mockadas trazem duas conversas de e-mail: uma thread longa (resposta automática, texto citado, três anexos, um deles indisponível, imagem embutida, formulário respondido e nota interna) e uma caixa com leitura atrasada e remetente não verificado. A aba Contatos usa o mesmo diretório do CRM das conexões reais; o mock responde `GET /inbox/mobile/contacts`, o detalhe com as opções `email:{assetId}` e os motivos de indisponibilidade, e o `start`. Responder aceita `subject` e expande `[[form:ID]]`. "Ver original" mostra um aviso na demonstração, porque não há página assinada para abrir no navegador.
+
+No emulador, o balanço é injetado pelo console (`adb emu sensor set acceleration`), sem atalho escondido no app: `e2e/flows/email/shake.sh`. `e2e/flows/email/run.sh` executa os fluxos Maestro do canal em ordem, com o APK release já instalado.

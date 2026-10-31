@@ -3,7 +3,7 @@ import {AccessCache} from './access-cache.ts';
 import {canRetryMessage} from './message-retry.ts';
 import {t} from '../i18n/engine.ts';
 import type {Storage} from '../storage/interface.ts';
-import {ApiError, messageKey, defaultView, type Conversation, type Message, type Outbox, type Page, type Transport, type ViewState} from './types.ts';
+import {ApiError, messageKey, migrateView, type Conversation, type Message, type Outbox, type Page, type Transport, type ViewState} from './types.ts';
 export class InboxRepository {
   private work=new Set<Promise<unknown>>();
   private retries=new Map<string,Promise<'registered'|'already_registered'>>();
@@ -23,8 +23,10 @@ export class InboxRepository {
   async cachedList(){const all=await this.disk.scan<Conversation>('conversation:');const ids=await this.disk.get<number[]>('sync:list-ids');return (ids?all.filter(c=>ids.includes(c.id)):all).sort((a,b)=>b.last_message_at.localeCompare(a.last_message_at)||b.id-a.id)}
   async cachedMessages(id:number){return (await this.disk.scan<Message>('message:'+id+':')).sort((a,b)=>a.timestamp.localeCompare(b.timestamp))}
   async saveConversations(items:Conversation[]){for(const c of items)await this.disk.put('conversation:'+c.id,c)}
+  /** A conversation started on this device belongs to the cached list before the next full list sync. */
+  async adopt(c:Conversation){await this.saveConversations([c]);const ids=await this.disk.get<number[]>('sync:list-ids');if(ids&&!ids.includes(c.id))await this.disk.put('sync:list-ids',[...ids,c.id])}
   async saveMessages(id:number,items:Message[]){for(const m of items)await this.disk.put('message:'+id+':'+messageKey(m),m);await this.favorites.reconcile(id,items)}
-  async view(){return {...defaultView(),...await this.disk.get<ViewState>('ui:view')}}
+  async view(){return migrateView(await this.disk.get<ViewState>('ui:view'))}
   private async listBatch(cursor:string|null,limit:number){
     const items:Conversation[]=[];const seen=new Set<string>();let complete=true;
     do{if(cursor){if(seen.has(cursor))throw new ApiError(502,'cursor_loop','A API repetiu uma página de conversas.');seen.add(cursor)}
@@ -39,16 +41,28 @@ export class InboxRepository {
   async list(){const previous=(await this.disk.scan<Conversation>('conversation:')).map(c=>c.id);const batch=await this.listBatch(null,Math.max(200,previous.length));if(batch.complete)await this.access.completeList(batch.items.map(c=>c.id),previous);return this.persistList([...new Map(batch.items.map(c=>[c.id,c])).values()],batch.cursor,batch.complete)}
   async more(){const cursor=await this.disk.get<string>('sync:list-cursor');if(!cursor)return this.cachedList();const previous=await this.cachedList();const batch=await this.listBatch(cursor,200);const items=[...new Map([...previous,...batch.items].map(c=>[c.id,c])).values()].sort((a,b)=>b.last_message_at.localeCompare(a.last_message_at)||b.id-a.id);return this.persistList(items,batch.cursor,batch.complete)}
   async detail(id:number){const c=await this.api.request<Conversation>({method:'GET',path:`/inbox/api/conversations/${id}`});await this.saveConversations([c]);return c}
-  async history(id:number,before?:string){const p=await this.api.request<Page<Message>>({method:'GET',path:`/inbox/api/conversations/${id}/history`,query:{limit:40,...(before?{before}:{})}});await this.saveMessages(id,p.items);await this.reconcile(id,p.items);if(!before)await this.disk.put('cursor:'+id,p.next_cursor);return p}
+  async history(id:number,before?:string){const p=await this.api.request<Page<Message>>({method:'GET',path:`/inbox/api/conversations/${id}/history`,query:{limit:40,...(before?{before}:{})}});await this.saveMessages(id,p.items);await this.reconcile(id,p.items);if(!before){await this.disk.put('cursor:'+id,p.next_cursor);await this.prune(id,p)}return p}
+  /**
+   * The newest page is the server's whole truth from its oldest item to its newest one (all of
+   * history when there is no older page). A cached server message in that range that the page
+   * lacks was hidden or removed there, like an e-mail polled while its request card was pending.
+   */
+  private async prune(id:number,page:Page<Message>){
+    if(!page.items.length)return;
+    const time=(m:Message)=>Date.parse(m.timestamp);const keep=new Set(page.items.map(messageKey));
+    const oldest=page.next_cursor?Math.min(...page.items.map(time)):-Infinity;const newest=Math.max(...page.items.map(time));
+    for(const m of await this.cachedMessages(id))if(!String(m.id).startsWith('local-')&&!keep.has(messageKey(m))&&time(m)>oldest&&time(m)<=newest)await this.disk.remove('message:'+id+':'+messageKey(m));
+  }
   async refreshHistory(id:number){const previous=await this.cachedMessages(id);const known=new Set(previous.map(messageKey));let page=await this.history(id);let cursor=page.next_cursor;let count=0;while(previous.length&&cursor&&!page.items.some(m=>known.has(messageKey(m)))&&count++<20){page=await this.history(id,cursor);cursor=page.next_cursor}return this.cachedMessages(id)}
   async poll(id?:number){const p=await this.api.request<{conversations:Conversation[];timeline:Message[];next_since:string;has_more:boolean}>({method:'GET',path:'/inbox/api/updates',query:{since:await this.disk.get<string>('sync:since')||'',...(id?{state_id:id}:{})}});await this.saveConversations(p.conversations);if(id){await this.saveMessages(id,p.timeline);await this.reconcile(id,p.timeline)}await this.disk.put('sync:since',p.next_since);await this.disk.put('sync:last',Date.now());return p}
   async transition(id:number,version:number,action:string,payload:Record<string,unknown>={}){const c=await this.api.request<Conversation>({method:'POST',path:`/inbox/api/conversations/${id}/${action==='take'?'take':'state'}`,body:action==='take'?{version}:{version,action,...payload}});await this.saveConversations([c]);return c}
   async send(entry:Outbox){
     await this.disk.put('outbox:'+entry.request_id,entry);
-    const optimistic:Message={kind:entry.mode==='note'?'note':'outbound',id:'local-'+entry.request_id,body:entry.body,request_id:entry.request_id,timestamp:entry.timestamp,direction:'outbound',status:'sending',attachment:entry.attachment};
+    const optimistic:Message={kind:entry.mode==='note'?'note':'outbound',id:'local-'+entry.request_id,body:entry.body,request_id:entry.request_id,timestamp:entry.timestamp,direction:'outbound',status:'sending',attachment:entry.attachment,...(entry.mode==='reply'&&entry.subject?{subject:entry.subject}:{})};
     await this.saveMessages(entry.conversationId,[optimistic]);
     try{
-      const result=await this.api.request<{item?:Message;summary?:Conversation;id?:number}>({method:'POST',path:`/inbox/api/conversations/${entry.conversationId}/${entry.mode}`,body:{body:entry.body,...(entry.mode==='reply'?{request_id:entry.request_id}:{}),...(entry.template_id?{template_id:entry.template_id,variables:entry.variables}:{}),...(entry.attachment?{attachment:entry.attachment}:{}),...(entry.replyMode?{reply_mode:entry.replyMode}:{})}});
+      // `subject` is optional and only meaningful for e-mail replies (Inbox 1.9).
+      const result=await this.api.request<{item?:Message;summary?:Conversation;id?:number}>({method:'POST',path:`/inbox/api/conversations/${entry.conversationId}/${entry.mode}`,body:{body:entry.body,...(entry.mode==='reply'?{request_id:entry.request_id}:{}),...(entry.mode==='reply'&&entry.subject?.trim()?{subject:entry.subject.trim()}:{}),...(entry.template_id?{template_id:entry.template_id,variables:entry.variables}:{}),...(entry.attachment?{attachment:entry.attachment}:{}),...(entry.replyMode?{reply_mode:entry.replyMode}:{})}});
       // Existing note response supplies id/saved; item is an explicitly documented mock addition.
       const item=result.item||{...optimistic,id:result.id!,status:undefined};
       await this.saveMessages(entry.conversationId,[item]);await this.disk.remove('message:'+entry.conversationId+':'+messageKey(optimistic));await this.disk.remove('outbox:'+entry.request_id);if(result.summary)await this.saveConversations([result.summary]);return result;

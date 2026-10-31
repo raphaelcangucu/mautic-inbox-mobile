@@ -1,0 +1,156 @@
+appId: com.distributionmachine.mauticinbox.demo
+name: API real 1.2.2 - navegacao contra mkt-macro.on-forge.com
+# Precisa de um build SEM EXPO_PUBLIC_MAUTIC_E2E_DEMO e de uma sessao ja iniciada no aparelho.
+# Nada aqui envia mensagem, assume, resolve, adia ou transfere: nenhuma conversa muda de estado.
+# O arrastar para o lado so revela as acoes e fecha de novo, sem toca-las.
+# A UNICA escrita e a disponibilidade do proprio atendente, no fim, e ela volta ao valor inicial.
+---
+- launchApp
+
+# A lista precisa vir do servidor, nao do cache vazio.
+- extendedWaitUntil:
+    visible:
+      id: bottom-tabs
+    timeout: 40000
+- assertNotVisible:
+    id: mock-mode-banner
+- takeScreenshot: 30-lista-real
+
+# Chips de filtro e a folha unificada, com as contagens vindas da API.
+- tapOn:
+    id: open-filters
+- extendedWaitUntil:
+    visible:
+      id: channel-whatsapp
+    timeout: 20000
+- takeScreenshot: 31-filtros-real
+- tapOn:
+    id: sheet-close
+
+# Busca: as conversas sao locais, os contatos vem de /inbox/mobile/api/contacts.
+- tapOn:
+    id: open-search
+- extendedWaitUntil:
+    visible:
+      id: search-conversations
+    timeout: 20000
+- tapOn:
+    id: search-conversations
+- inputText: a
+- takeScreenshot: 32-busca-real
+- tapOn:
+    id: search-back
+
+# Arrastar para o lado: revela e fecha, sem tocar em Para mim nem Resolver.
+- extendedWaitUntil:
+    visible:
+      id: bottom-tabs
+    timeout: 20000
+- takeScreenshot: 33-antes-do-arrasto
+
+# Comentarios: cabecalho por publicacao, cartao de spam e acoes de resposta na linha.
+- tapOn:
+    id: kind-comments
+- extendedWaitUntil:
+    visible:
+      id: bottom-tabs
+    timeout: 20000
+- takeScreenshot: 33b-comentarios-real
+- tapOn:
+    id: kind-inbox
+
+# Acoes da conversa: blocos rapidos e os chips de adiar. Abrir a folha nao muda nada.
+- tapOn:
+    point: 50%, 58%
+- extendedWaitUntil:
+    visible:
+      id: chat-actions
+    timeout: 25000
+    optional: true
+- tapOn:
+    id: chat-actions
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: snooze-hour
+    timeout: 15000
+    optional: true
+- takeScreenshot: 33c-acoes-e-adiar
+- tapOn:
+    id: sheet-close
+    optional: true
+- tapOn:
+    id: email-thread-back
+    optional: true
+- tapOn:
+    id: chat-back
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: bottom-tabs
+    timeout: 25000
+
+# Assistente e Conta: telas que leem a API sem escrever.
+- tapOn:
+    id: tab-assistant
+- takeScreenshot: 34-assistente-real
+- hideKeyboard:
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: bottom-tabs
+    timeout: 20000
+- tapOn:
+    id: tab-contacts
+- extendedWaitUntil:
+    visible:
+      id: search-crm-contact
+    timeout: 60000
+- takeScreenshot: 35-contatos-real
+- extendedWaitUntil:
+    visible:
+      id: bottom-tabs
+    timeout: 20000
+- tapOn:
+    id: tab-accounts
+- takeScreenshot: 36-conta-real
+
+# Disponibilidade contra o servidor de verdade. O cartao so existe porque o config
+# anuncia capabilities.availability; sem isso a tela nem mostra o controle.
+- extendedWaitUntil:
+    visible:
+      id: availability-switch
+    timeout: 25000
+- takeScreenshot: 38-disponivel-real
+- tapOn:
+    id: availability-switch
+- takeScreenshot: 39-indisponivel-real
+- tapOn:
+    id: availability-switch
+- takeScreenshot: 39b-disponivel-de-novo
+
+# O cartao de disponibilidade empurra as preferencias para baixo da dobra.
+- scrollUntilVisible:
+    element:
+      id: account-preferences
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: account-preferences
+    optional: true
+- extendedWaitUntil:
+    visible:
+      id: theme-system
+    timeout: 20000
+    optional: true
+- takeScreenshot: 36b-tema-real
+- tapOn:
+    id: header-back
+    optional: true
+- tapOn:
+    id: tab-inbox
+- extendedWaitUntil:
+    visible:
+      id: bottom-tabs
+    timeout: 20000
+- takeScreenshot: 37-volta-real

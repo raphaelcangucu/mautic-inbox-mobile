@@ -7,6 +7,8 @@ name: Conversation and comment swipe-back without sending
 - tapOn:
     id: kind-inbox
 - tapOn:
+    id: open-search
+- tapOn:
     id: search-conversations
 - eraseText
 - inputText: ${CONTACT_QUERY}
@@ -55,11 +57,6 @@ name: Conversation and comment swipe-back without sending
     duration: 500
 - assertVisible:
     id: tab-inbox
-- tapOn:
-    id: search-conversations
-- eraseText
-- hideKeyboard:
-    optional: true
 - tapOn:
     id: kind-comments
 - tapOn:

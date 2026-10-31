@@ -1,0 +1,31 @@
+appId: com.distributionmachine.mauticinbox.demo
+name: E-mail 01 · shake opens test mode; the mocked Macro Markets account lists an e-mail conversation
+# Runs after 00 and shake.sh (run.sh does both): the shake is injected through the emulator console.
+---
+- extendedWaitUntil:
+    visible:
+      id: demo-toggle
+    timeout: 30000
+- assertVisible: 'Modo de teste'
+- tapOn:
+    id: demo-toggle
+- extendedWaitUntil:
+    visible:
+      id: account-macro-7
+    timeout: 15000
+- tapOn:
+    id: account-macro-7
+- extendedWaitUntil:
+    visible:
+      id: mock-mode-banner
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: conversation-8
+    timeout: 20000
+- assertVisible:
+    id: conversation-subject-8
+    text: 'Re: Por que você ainda não depositou\?'
+- assertVisible: 'João Ribeiro'
+- assertVisible: '.*contato@macromarkets\.com.*'
+- takeScreenshot: 01-inbox-email-row

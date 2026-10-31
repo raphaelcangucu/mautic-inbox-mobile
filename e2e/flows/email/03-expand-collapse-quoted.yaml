@@ -1,0 +1,76 @@
+appId: com.distributionmachine.mauticinbox.demo
+name: E-mail 03 · expand earlier messages, open and collapse a card, show quoted text, attachments and details
+---
+- scrollUntilVisible:
+    element:
+      id: email-earlier-messages
+    direction: UP
+    visibilityPercentage: 100
+    centerElement: true
+- tapOn:
+    id: email-earlier-messages
+- assertNotVisible:
+    id: email-earlier-messages
+- assertVisible: 'Resposta automática de João Ribeiro.*'
+- assertVisible:
+    id: email-card-header-9003
+- assertNotVisible:
+    id: email-card-open-9003
+- tapOn:
+    id: email-card-header-9003
+- assertVisible:
+    id: email-card-open-9003
+- assertVisible: '.*Qual é o depósito mínimo\?.*'
+- scrollUntilVisible:
+    element:
+      id: email-quoted-toggle-9003
+    direction: DOWN
+    visibilityPercentage: 100
+    centerElement: true
+- assertNotVisible:
+    id: email-quoted-9003
+- tapOn:
+    id: email-quoted-toggle-9003
+- assertVisible:
+    id: email-quoted-9003
+- assertVisible: '.*Vi que você abriu sua conta na Macro Markets.*'
+- takeScreenshot: 03-expanded-card-quoted
+- scrollUntilVisible:
+    element:
+      id: email-attachment-9003-0
+    direction: DOWN
+    visibilityPercentage: 100
+    centerElement: true
+- assertVisible: '3 anexos'
+- assertVisible: 'extrato-corretora-setembro\.pdf'
+- scrollUntilVisible:
+    element:
+      id: email-attachment-unavailable-9003-2
+    direction: DOWN
+    visibilityPercentage: 100
+    centerElement: true
+- assertVisible: 'Anexo indisponível.*'
+- takeScreenshot: 03-attachments
+- scrollUntilVisible:
+    element:
+      id: email-details-toggle-9003
+    direction: UP
+    visibilityPercentage: 100
+    centerElement: true
+- tapOn:
+    id: email-details-toggle-9003
+- assertVisible:
+    id: email-details-9003
+- assertVisible: '.*joao\.ribeiro@example\.com.*'
+- scrollUntilVisible:
+    element:
+      id: email-card-header-9003
+    direction: UP
+    visibilityPercentage: 100
+    centerElement: true
+- tapOn:
+    id: email-card-header-9003
+- assertNotVisible:
+    id: email-card-open-9003
+- assertVisible:
+    id: email-card-snippet-9003

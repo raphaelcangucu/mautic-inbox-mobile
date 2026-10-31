@@ -9,6 +9,49 @@ import {Sheet} from './Sheet';
 import {CrmAutocomplete} from './CrmAutocomplete';
 import type {CrmOption,CatalogueKind} from './crm-catalogue';
 export type Panel='transfer'|'snooze'|'canned'|'agent'|'moderation'|'crm'|null;
+
+/** Quando o atendimento volta para a fila. Mesmas opcoes do painel de adiar, so que ao alcance de um toque. */
+export function snoozeUntil(kind:'hour'|'tomorrow'|'monday'):string{
+ const until=new Date();
+ if(kind==='hour'){until.setTime(Date.now()+3600000);return until.toISOString()}
+ if(kind==='tomorrow')until.setDate(until.getDate()+1);
+ else until.setDate(until.getDate()+((8-until.getDay())%7||7));
+ until.setHours(9,0,0,0);
+ return until.toISOString();
+}
+
+/** Respostas prontas em chips acima do compositor. Le o cache primeiro, para abrir a conversa
+ *  sem esperar a rede, e atualiza em segundo plano; inserir e o mesmo que o painel faz. */
+export function CannedChips(){
+ const s=useApp();const c=useTheme();const [canned,setCanned]=useState<CannedResponse[]>([]);
+ useEffect(()=>{let active=true;const repo=s.repo;if(!repo){setCanned([]);return}
+  void (async()=>{
+   const cache=await repo.disk.get<CannedResponse[]>('feature:canned');
+   if(active&&cache)setCanned(cache);
+   if(s.offline)return;
+   try{const result=await repo.api.request<{items:CannedResponse[]}>({method:'GET',path:'/inbox/mobile/canned-responses'});await repo.disk.put('feature:canned',result.items);if(active)setCanned(result.items)}catch{/* o cache ja serve */}
+  })().catch(()=>{});
+  return()=>{active=false}},[s.repo,s.active?.id,s.offline]);
+ if(!canned.length)return null;
+ return <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" style={{maxHeight:44}} contentContainerStyle={{gap:8,paddingHorizontal:10,paddingBottom:8,alignItems:'center'}}>
+  {canned.map(item=><Tap key={item.id} testID={'canned-chip-'+item.id} label={item.name} onPress={()=>{const current=useApp.getState();current.setDraft(current.draft+(current.draft?'\n':'')+item.body)}} style={{height:36,minHeight:36,paddingHorizontal:14,justifyContent:'center',borderRadius:18,borderWidth:1,borderColor:c.lineBlue,backgroundColor:c.paper}}><T size={13} heavy color={c.blue} numberOfLines={1}>{item.name}</T></Tap>)}
+ </ScrollView>;
+}
+
+/** Chips de "Adiar ate" no topo das acoes, com o painel completo atras de "Escolher". */
+export function SnoozeChips({onChoose,disabled=false}:{onChoose:()=>void;disabled?:boolean}){
+ const c=useTheme();const s=useApp();
+ const chip=(label:string,onPress:()=>void,testID:string)=><Tap key={testID} testID={testID} label={label} disabled={disabled} onPress={onPress} style={{height:36,minHeight:36,paddingHorizontal:14,justifyContent:'center',borderRadius:10,borderWidth:1,borderColor:c.line,backgroundColor:c.paper}}><T size={13} bold color={c.inkStrong}>{label}</T></Tap>;
+ return <View style={{gap:8,paddingBottom:4}}>
+  <T size={13} semi line={18} color={c.inkStrong}>{t("actions.snoozeUntil")}</T>
+  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8}}>
+   {chip(t("actions.oneHour"),()=>void s.transition('snooze',{until:snoozeUntil('hour')}),'snooze-hour')}
+   {chip(t("actions.tomorrow"),()=>void s.transition('snooze',{until:snoozeUntil('tomorrow')}),'snooze-tomorrow')}
+   {chip(t("actions.nextMonday"),()=>void s.transition('snooze',{until:snoozeUntil('monday')}),'snooze-monday')}
+   {chip(t("actions.chooseSnooze"),onChoose,'snooze-choose')}
+  </ScrollView>
+ </View>;
+}
 const titles={transfer:"actions.transfer",snooze:"actions.snooze",canned:"actions.canned",agent:"actions.agent",moderation:"actions.moderate",crm:"actions.crm"} as const;
 export function ConversationActions({panel,onClose,email=''}:{panel:Panel;onClose:()=>void;email?:string}){
  const s=useApp();const c=useTheme();const [canned,setCanned]=useState<CannedResponse[]>([]);const [loading,setLoading]=useState(false);const [busy,setBusy]=useState(false);const [error,setError]=useState('');const [confirm,setConfirm]=useState('');const [duration,setDuration]=useState(60);const [address,setAddress]=useState(email);const [campaign,setCampaign]=useState<CrmOption|null>(null);const [segment,setSegment]=useState<CrmOption|null>(null);const [catalogue,setCatalogue]=useState<CatalogueKind|null>(null);const [review,setReview]=useState(false);const [users,setUsers]=useState<{id:number;name:string}[]>([]);const [agents,setAgents]=useState<{key:string;name:string;allowed?:boolean;reason_label?:string}[]>([]);const [crm,setCrm]=useState<{campaigns:{id:number;name:string}[];segments:{id:number;name:string}[];matches?:{id:number;name:string;email:string}[];contact?:{id:number;name:string};can_edit?:boolean}>({campaigns:[],segments:[]});const [contactId,setContactId]=useState(0);const [create,setCreate]=useState(false);const [name,setName]=useState('');const [body,setBody]=useState('');

@@ -1,0 +1,20 @@
+appId: com.distributionmachine.mauticinbox.demo
+name: Live e-mail 11 · type the code read from GreenMail and land on the real inbox
+# Env: CODE, CONVERSATION_ID, SUBJECT. Continues the session of flow 10.
+---
+- tapOn:
+    id: login-code
+- inputText: ${CODE}
+- hideKeyboard
+- tapOn:
+    id: login-verify
+- extendedWaitUntil:
+    visible:
+      id: conversation-${CONVERSATION_ID}
+    timeout: 60000
+- assertNotVisible:
+    id: mock-mode-banner
+- assertVisible:
+    id: conversation-subject-${CONVERSATION_ID}
+    text: ${SUBJECT}
+- takeScreenshot: 10-live-inbox

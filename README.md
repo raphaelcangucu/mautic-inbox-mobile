@@ -12,11 +12,12 @@ Built for customer-facing teams that need to keep an eye on their queue away fro
 
 ### More context for every reply
 
-- **See what needs attention.** Bring your connected channels together and filter the queue by channel, assignee and status. WhatsApp, Instagram, Facebook and WebChat share the same support workflow.
+- **See what needs attention.** Bring your connected channels together and filter the queue by channel, assignee and status. WhatsApp, Instagram, Facebook, WebChat and email share the same support workflow.
+- **Answer email like an email client.** Email conversations open as a Gmail-style thread: the subject on top, stacked cards that expand and collapse, quoted text behind "•••", every attachment, and a reply screen with To, From and an editable "Re:" subject. Insert saved replies or a survey form link, and open the original message in the system browser through a short-lived signed link. Remote images stay blocked until you ask for them.
 - **Pick up where you left off.** Read the history, add internal notes and use saved replies. Local history and drafts help you continue your work as you move between screens.
 - **Ask your Mautic.** Explore campaigns, contacts and installation information with the assistant, using your account permissions and explicit consent before sharing data with the AI provider.
 - **Keep and share useful messages.** Tap or hold a message to copy its complete text and links, star it locally, share it with another app or forward it into another conversation’s draft. Starred messages stay in the encrypted cache for the current account and are removed when conversation access is revoked.
-- **Find the right contact.** Search by name, email or phone. Combine segment and campaign filters, then open a WhatsApp QR conversation when the contact has a valid phone number and an active connection is available.
+- **Find the right contact.** Search by name, email or phone. Combine segment and campaign filters, then open a WhatsApp QR conversation when the contact has a valid phone number and an active connection is available, or an email conversation from one of your conversational email accounts. The channel sheet explains why an option is unavailable.
 - **Keep comments in the conversation.** Follow Instagram and Facebook comments, mark spam and organize moderation in the support queue. Blocking an author in the queue does not block their social media profile.
 - **Switch between your Mautics.** Add installation URLs, sign in to your accounts and keep sessions separate. Receive notifications sent by the installation you connected.
 
@@ -75,6 +76,21 @@ bundle exec ruby fastlane/tests/listing_guard_test.rb
 ## Explicit test mode
 
 Real connections always use their API and local real-data cache. API failures never switch to fictional data. On a phone, shake only on the **Connections** screen, enable test connections, then select a clearly marked mocked account. The app shows a persistent mock banner and hides test mode again after restarting. Demo tools and simulated notifications stay out of normal connections. See [test-mode behavior](docs/TEST-MODE.md).
+
+## Email channel (1.1.0)
+
+Email needs Inbox 1.9 with a conversational Multi Mail account (`capabilities.channels` includes `email`). The app reads the Inbox 1.9 contract: `subject`, `email` details and several `attachments[]` per timeline item; `subject`, `asset.address` and `email.inbound` on the conversation summary; `email:{assetId}` options in `GET /inbox/mobile/api/contacts/{id}`; an optional `subject` on `POST …/conversations/{id}/reply`; `POST /inbox/mobile/api/messages/{id}/original-link`; and `GET /inbox/mobile/api/forms`. Attachments load through `/inbox/mobile/api/email/{messageId}/attachments/{index}` with the session. The body is the server's Markdown rendered natively, never HTML. A channel filter saved by 1.0.x gains Email automatically.
+
+The demo accounts include email threads (quoted text, attachments, an auto-reply, an answered survey, an internal note and a delayed mailbox) and directory contacts for the channel sheet. Maestro flows for the release APK on an Android emulator live in `e2e/flows/email/`: `e2e/flows/email/run.sh` opens test mode by injecting the shake through the emulator console, then runs the flows in order.
+
+`e2e/flows/email-live/` runs the same app against a real server: a local Mautic bench prepared by `mautic-multi-mail-bundle/Tests/e2e/run.sh` with `E2E_SUMMARY`. `e2e/flows/email-live/run.sh` does the following:
+1. Installs an APK prebuilt with `MAUTIC_E2E_USER_CA=1`. Only that build trusts user CAs (`plugins/withE2EUserCa.cjs`); store builds never do.
+2. Installs the bench CA as a user CA on the emulator and forwards `:8443`.
+3. Logs in with the magic code read from GreenMail.
+4. Opens the real thread and replies.
+5. Checks that the lead's mailbox got the reply threaded on the lead's message.
+
+`RECORD=1` records the thread flow.
 
 ## Internal assistants and user permissions
 

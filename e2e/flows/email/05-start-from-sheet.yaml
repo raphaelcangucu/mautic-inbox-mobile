@@ -1,0 +1,67 @@
+appId: com.distributionmachine.mauticinbox.demo
+name: E-mail 05 · start an e-mail conversation from the contact channel sheet
+---
+- tapOn:
+    id: tab-contacts
+- tapOn:
+    id: search-crm-contact
+- inputText: 'Ana Beatriz'
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: crm-contact-232
+    timeout: 10000
+- tapOn:
+    id: crm-contact-232
+- scrollUntilVisible:
+    element:
+      id: start-contact-conversation
+    direction: DOWN
+- tapOn:
+    id: start-contact-conversation
+- extendedWaitUntil:
+    visible: 'Iniciar E-mail · Macro Markets · contato@macromarkets\.com'
+    timeout: 10000
+- assertVisible: 'Iniciar E-mail · Macro Markets Suporte · suporte@macromarkets\.com'
+- assertVisible: 'Esta conta de e-mail está desativada\.'
+- takeScreenshot: 05-channel-sheet
+- tapOn: 'Iniciar E-mail · Macro Markets · contato@macromarkets\.com'
+- extendedWaitUntil:
+    visible:
+      id: email-thread-empty
+    timeout: 15000
+- assertVisible:
+    id: email-thread-subject
+    text: '\(sem assunto\)'
+- tapOn:
+    id: email-reply
+- extendedWaitUntil:
+    visible:
+      id: email-compose
+    timeout: 10000
+- assertVisible: '.*ana\.rocha@example\.com.*'
+- tapOn:
+    id: email-compose-body
+- inputText: 'Ola Ana! Vi seu cadastro e fico a disposicao para ajudar no primeiro deposito.'
+- hideKeyboard
+- tapOn:
+    id: email-compose-send
+- assertVisible: 'Informe o assunto do primeiro e-mail desta conversa\.'
+- tapOn:
+    id: email-compose-subject
+- inputText: 'Boas-vindas a Macro Markets'
+- hideKeyboard
+- tapOn:
+    id: email-compose-send
+- extendedWaitUntil:
+    visible:
+      id: email-thread-subject
+      text: 'Boas-vindas a Macro Markets'
+    timeout: 15000
+- assertVisible: '.*fico a disposicao para ajudar.*'
+- takeScreenshot: 05-new-email-sent
+- tapOn:
+    id: email-thread-back
+- extendedWaitUntil:
+    visible: 'Ana Beatriz Rocha'
+    timeout: 10000

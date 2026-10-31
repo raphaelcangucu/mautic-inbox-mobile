@@ -1,0 +1,43 @@
+appId: com.distributionmachine.mauticinbox.demo
+name: Live e-mail 10 · connect to the local HTTPS bench and ask for the access code
+# Env: MAUTIC_URL, OPERATOR. Needs the e2e APK (trusts the bench CA) and `adb reverse tcp:8443 tcp:8443`.
+---
+- launchApp:
+    clearState: true
+- extendedWaitUntil:
+    visible:
+      id: tab-accounts
+    timeout: 60000
+- tapOn: 'Preferências e tema|Preferences and theme|Preferencias y tema'
+- tapOn:
+    id: language-selector
+- tapOn:
+    id: language-pt-BR
+- tapOn: 'Voltar|Back|Volver'
+- tapOn:
+    id: tab-accounts
+- tapOn: 'Adicionar Mautic'
+- extendedWaitUntil:
+    visible:
+      id: instance-url
+    timeout: 10000
+- tapOn:
+    id: instance-url
+- inputText: ${MAUTIC_URL}
+- hideKeyboard
+- tapOn:
+    id: discover-api
+- extendedWaitUntil:
+    visible:
+      id: login-email
+    timeout: 30000
+- tapOn:
+    id: login-email
+- inputText: ${OPERATOR}
+- hideKeyboard
+- tapOn:
+    id: login-send-code
+- extendedWaitUntil:
+    visible:
+      id: login-code
+    timeout: 30000

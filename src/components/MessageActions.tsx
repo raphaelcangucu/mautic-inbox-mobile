@@ -9,7 +9,8 @@ import {forwardedDraft,forwardTargets} from '../api/message-forward';
 import {type Message} from '../api/types';
 import {Sheet} from './Sheet';
 import {T,Tap,Icon,Button} from './ui';
-export function MessageActions({message,favorite,onClose,onFavorite}:{message:Message|null;favorite:boolean;onClose:()=>void;onFavorite:()=>Promise<void>}){
+/** `forwardRequest` opens the forward picker directly (e-mail thread "Forward" button); copy/share/forward always use the text body. */
+export function MessageActions({message,favorite,onClose,onFavorite,forwardRequest}:{message:Message|null;favorite:boolean;onClose:()=>void;onFavorite:()=>Promise<void>;forwardRequest?:{message:Message;nonce:number}|null}){
  const c=useTheme();const s=useApp();const [busy,setBusy]=useState(false);const [error,setError]=useState('');const lock=useRef(false);const pending=useRef<(()=>void)|null>(null);
  useEffect(()=>()=>{pending.current=null},[]);
  useEffect(()=>setError(''),[message]);
@@ -27,6 +28,7 @@ export function MessageActions({message,favorite,onClose,onFavorite}:{message:Me
   current.setDraft(forwardedDraft(current.draft,m.body));setForward(false);source.current=null;current.notify(t('message.forwardReady'));
  }catch(e){setError(e instanceof Error&&e.message==='forward_too_long'?t('message.forwardTooLong'):t('message.forwardError'))}finally{forwarding.current=false;setBusy(false)}}
  function startForward(){if(!message)return;source.current=message;setError('');setSearch('');setLimit(20);Keyboard.dismiss();const run=()=>{if(valid())setForward(true)};if(Platform.OS==='ios'){pending.current=run;onClose()}else{onClose();run()}}
+ useEffect(()=>{if(!forwardRequest?.message.body.trim())return;source.current=forwardRequest.message;setError('');setSearch('');setLimit(20);Keyboard.dismiss();setForward(true)},[forwardRequest?.nonce]);
  const targets=forwardTargets(s.conversations,s.conversationId,search);
  return <>
  <Sheet title={t('message.actions')} visible={!!message} onClose={()=>{if(!busy)onClose()}} onDismiss={()=>{const run=pending.current;pending.current=null;run?.()}}>

@@ -2,7 +2,7 @@ import {t,type TranslationKey} from '../i18n/engine';
 import React, {useEffect, useState, useRef} from 'react';
 import {View, ScrollView, TextInput, Keyboard, Linking, AppState} from 'react-native';
 import {useApp} from '../store/app';
-import {useTheme, font} from '../theme';
+import {useTheme, font,scale} from '../theme';
 import {T, Tap, Icon, Button, Card, Top} from '../components/ui';
 import {checkedAssistantProposals,assistantConfirmation,assistantSupportedActions,type AssistantProposal} from '../api/assistant-actions';
 import {Sheet} from '../components/Sheet';
@@ -206,13 +206,14 @@ export function Assistant() {
     <Top/>
     <ScrollView key={s.active?.id} ref={scroll} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" scrollEventThrottle={32} onScroll={event=>{const {contentOffset,contentSize,layoutMeasurement}=event.nativeEvent;follow.current=contentSize.height-contentOffset.y-layoutMeasurement.height<80}} onContentSizeChange={()=>{if(turns.length>0&&follow.current)scroll.current?.scrollToEnd({animated:true})}} contentContainerStyle={{paddingHorizontal:18,paddingTop:5,paddingBottom:18}}>
       <View style={{flexDirection:'row',gap:9,alignItems:'center',marginTop:6,marginBottom:13}}>
-        <Icon name="sparkles-outline" size={20} color={c.blue}/><T size={20} bold style={{flex:1,lineHeight:26,letterSpacing:-.5}}>{agent?.name||t("assistant.title")}</T>
+        <T heavy size={scale.tabTitle.size} line={scale.tabTitle.line} tracking={scale.tabTitle.tracking} style={{flex:1}} numberOfLines={1}>{t("nav.assistant")}</T>
+        {!!agent&&<Tap label={t('assistant.chooseAgent')} testID="assistant-agent-pill" disabled={busy||agents.length<2} onPress={()=>setAgentPicker(true)} style={{flexDirection:'row',alignItems:'center',gap:8,height:44,minHeight:44,paddingLeft:6,paddingRight:12,borderRadius:22,borderWidth:1,borderColor:c.line,backgroundColor:c.paper,maxWidth:'58%'}}><View style={{width:32,height:32,borderRadius:16,backgroundColor:c.blue,alignItems:'center',justifyContent:'center'}}><Icon name="sparkles-outline" size={17} color={c.paper}/></View><T size={14} heavy numberOfLines={1} style={{flexShrink:1}}>{agent.name}</T>{agents.length>1&&<Icon name="chevron-down" size={15} color={c.soft}/>}</Tap>}
         {s.active?.mode==='live'&&<Tap label={t("assistant.sharing")} testID="assistant-sharing-settings" disabled={busy||s.offline} onPress={()=>void ask(null)} style={{width:40,height:40,minHeight:40,alignItems:'center'}}><Icon name="shield-checkmark-outline" size={20} color={c.soft}/></Tap>}
       </View>
       <View style={{flexDirection:'row',gap:5,alignItems:'center',alignSelf:'flex-start',backgroundColor:c.okBg,borderRadius:7,paddingVertical:5,paddingHorizontal:8}}>
         <Icon name="lock-closed-outline" size={12} color={c.ok}/><T size={9} bold color={c.ok}>{t(agent?.confirmation_required?'assistant.permissionsActions':'assistant.permissions')}</T>
       </View>
-      {agents.length>1&&<Tap label={t('assistant.chooseAgent')} testID="assistant-agent-picker" disabled={busy} onPress={()=>setAgentPicker(true)} style={{flexDirection:'row',alignItems:'center',gap:7,minHeight:40,marginTop:8}}><Icon name="swap-horizontal-outline" size={17} color={c.blue}/><T size={12} color={c.blue}>{t('assistant.chooseAgent')}</T></Tap>}
+
       {s.active?.mode==='live'&&(!agentsReady||!agent)&&<View testID={agentsReady?'assistant-no-access':'assistant-loading'} style={{paddingVertical:22}}>
         <Card><Icon name={agentsReady?'lock-closed-outline':'shield-checkmark-outline'} size={28} color={c.soft}/>
           {agentsReady&&<T size={18} bold style={{marginTop:10}}>{t('assistant.accessRestricted')}</T>}
@@ -223,9 +224,7 @@ export function Assistant() {
       {agentsReady&&agent?.tools.includes('inbox_comments')&&<Card style={{marginTop:12}}><T size={13} bold>{t('assistant.sweepTitle')}</T><T size={11} muted>{t('assistant.sweepHint')}</T>{sweep&&<T testID="assistant-sweep-progress" size={12} style={{marginTop:8}}>{t('assistant.sweepProgress',{total:sweep.seen.length,spam:sweep.spam,legitimate:sweep.legitimate,uncertain:sweep.uncertain})} · {t(('assistant.sweep.'+sweep.status) as TranslationKey)}</T>}{busy&&keepScanning.current?<Button quiet label={t('assistant.pauseSweep')} onPress={pauseScan}/>:<><Button quiet testID="assistant-scan-comments" label={t(sweep?.status==='paused'?'assistant.resumeSweep':'assistant.scanComments')} disabled={busy||s.offline} onPress={()=>void ask(sweep?.status==='paused'?sweep.question:t('assistant.scanQuestion'),sweep?.status==='paused'?sweep.next||undefined:undefined,true,sweep?.status==='paused')}/></>}</Card>}
       {turns.length>visibleTurns&&<Button quiet label={t('assistant.earlierBatches')} onPress={()=>setVisibleTurns(n=>n+10)}/>}
       {agentsReady&&agent&&(turns.length === 0 ? <>
-        <View style={{width:49,height:49,borderRadius:17,backgroundColor:c.tint,alignItems:'center',justifyContent:'center',marginTop:22,marginBottom:15}}><Icon name="sparkles-outline" size={26} color={c.blue}/></View>
-        <T size={27} bold style={{lineHeight:35,letterSpacing:-.8,marginTop:8,marginBottom:2}}>{t('assistant.greeting',{name:s.active?.user.name||''})}</T>
-        <T size={13} muted style={{marginVertical:9}}>{t("assistant.intro")}</T>
+        <T size={15} line={21} muted style={{marginTop:18,marginBottom:4}}>{t("assistant.intro")}</T>
         <View style={{marginTop:10}}>{prompts.map(([icon,q]) => <Tap key={q} label={t(q)} onPress={() => void ask(t(q))} style={{flexDirection:'row',gap:10,minHeight:58,borderWidth:1,borderColor:c.line,paddingVertical:13,paddingHorizontal:12,borderRadius:13,backgroundColor:c.paper,marginVertical:4.5}}>
           <View style={{width:29,height:29,borderRadius:9,backgroundColor:c.canvas,alignItems:'center',justifyContent:'center'}}><Icon name={icon} color={c.blue} size={16}/></View>
           <T size={12} bold style={{flex:1}}>{t(q)}</T><Icon name="chevron-forward" size={13} color={c.faint}/>

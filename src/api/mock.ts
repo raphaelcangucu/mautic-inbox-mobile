@@ -4,8 +4,10 @@ import {seed,templates} from './fixtures.ts';
 import type {Storage} from '../storage/interface.ts';
 
 import {upgrade,featureRequest,type Remote} from './features.ts';
+import {emailReply} from './mock-email.ts';
+import {replySubject} from './email.ts';
 export class MockTransport implements Transport {
-  offline=false; latency=180; uncertainNext=false; conflictNext=false;
+  offline=false; latency=180; uncertainNext=false; conflictNext=false; available=true;
   private lock: Promise<unknown>=Promise.resolve();
   constructor(readonly account: Account,private disk: Storage){}
   async settle(){await this.lock}
@@ -17,7 +19,7 @@ export class MockTransport implements Transport {
     await new Promise(resolve=>setTimeout(resolve,this.latency));
     if(this.offline)throw new ApiError(0,'offline','Conexão interrompida.');
     let remote=await this.disk.get<Remote>('mock:remote');
-    if(!remote){remote={...seed(this.account),sequence:1000,schema:2};await this.disk.put('mock:remote',remote)}
+    if(!remote){remote={...seed(this.account),sequence:1000,schema:3};await this.disk.put('mock:remote',remote)}
     const data:Remote=JSON.parse(JSON.stringify(remote));upgrade(data,this.account);const b=r.body||{};
     const feature=featureRequest(data,this.account,r);if(feature!==undefined){await this.disk.put('mock:remote',data);return JSON.parse(JSON.stringify(feature)) as T;}
     const m=r.path.match(/^\/inbox\/api\/conversations\/(\d+)(?:\/(\w+))?$/);
@@ -32,6 +34,7 @@ export class MockTransport implements Transport {
       if(String(r.query?.needs_response)==='true')items=items.filter(x=>x.needs_response);
       const offset=Number(r.query?.cursor||0);const limit=Math.min(50,Number(r.query?.limit||25));
       value={items:items.slice(offset,offset+limit),next_cursor:offset+limit<items.length?String(offset+limit):null,counts:{all:items.length,mine:items.filter(x=>x.assignee?.id===this.account.user.id).length,unassigned:items.filter(x=>x.assignee===null).length}};
+    }else if(r.path==='/inbox/mobile/availability'){if(r.method==='POST')this.available=!!(r.body as{available?:boolean})?.available;value={available:this.available};
     }else if(r.path==='/inbox/api/updates')value={conversations:data.conversations,timeline:r.query?.state_id?data.messages[Number(r.query.state_id)]:[],next_since:new Date().toISOString(),has_more:false};
     else if(r.path==='/inbox/mobile/assistant/messages'&&r.method==='POST'){
       const question=String(b.message||'');const waiting=/aguardando|sem resposta|awaiting|waiting|unanswered|esperando|sin respuesta/i.test(question);const history=/histórico|historico|resumir|history|summari[sz]|historial|resum/i.test(question);const segment=/segment|automa/i.test(question);const draft=!waiting&&/respost|sugest|rascunh|repl|suggest|draft|respuest|suger|borrador/i.test(question);const contact=waiting||/contat|pessoa|contact|person/i.test(question);
@@ -60,6 +63,7 @@ export class MockTransport implements Transport {
         const request=String(b.request_id||'');if(sub==='reply'&&!/^[A-Za-z0-9_-]{8,64}$/.test(request))throw new ApiError(422,'request_id','request_id inválido.');
         const found=data.messages[c.id].find(x=>x.request_id===request&&request);
         if(found)return JSON.parse(JSON.stringify({request_id:request,status:found.status,item:found,summary:c})) as T;
+        let mail:ReturnType<typeof emailReply>|null=null;
         if(sub==='reply'){
           if(c.moderation?.spam||c.moderation?.blockedAuthor)throw new ApiError(422,'spam','Restaure a conversa ou desbloqueie o autor antes de responder.');
           if(c.lifecycle==='resolved')throw new ApiError(422,'resolved','Reabra a conversa antes de responder.');
@@ -68,9 +72,10 @@ export class MockTransport implements Transport {
           if(!c.mobile.window_open&&!b.template_id)throw new ApiError(422,'window_closed','Janela encerrada. Escolha um template aprovado.');
           if(b.template_id){const template=templates.find(t=>t.id===b.template_id);if(!template||c.channel!=='whatsapp')throw new ApiError(422,'template','Template indisponível.');const vars=b.variables as Record<string,string>;if(template.fields.some(f=>!vars?.[f.key]?.trim()))throw new ApiError(422,'variables','Preencha as variáveis do template.');}
           if(b.attachment&&!c.mobile.attachments)throw new ApiError(422,'attachment','Anexos não habilitados neste canal.');
-          c.assignee=this.account.user;c.mobile.ai=false;if(c.agent)c.agent.status='paused';c.human_takeover=true;c.needs_response=false;c.preview=body;c.last_message_at=new Date().toISOString();
+          if(c.channel==='email'){mail=emailReply(c,this.account,body,b.subject);c.subject=mail.subject}
+          c.assignee=this.account.user;c.mobile.ai=false;if(c.agent)c.agent.status='paused';c.human_takeover=true;c.needs_response=false;c.preview=mail?.body??body;c.last_message_at=new Date().toISOString();
         }
-        const message: Message={kind:sub==='note'?'note':'outbound',id:++data.sequence,body,timestamp:new Date().toISOString(),author:this.account.user.name,...(sub==='reply'?{direction:'outbound',request_id:request,status:'pending',attachment:b.attachment,replyMode:c.kind==='comments'?(b.reply_mode==='private'?'private':'public'):undefined}: {})} as Message;
+        const message: Message={kind:sub==='note'?'note':'outbound',id:++data.sequence,body:mail?.body??body,timestamp:new Date().toISOString(),author:this.account.user.name,...(sub==='reply'?{direction:'outbound',request_id:request,status:'pending',attachment:b.attachment,replyMode:c.kind==='comments'?(b.reply_mode==='private'?'private':'public'):undefined}: {}),...(mail?{subject:mail.subject,email:mail.email}:{})} as Message;
         if(sub==='reply'&&c.kind==='comments'&&b.reply_mode==='private'){
           const related=data.conversations.find(x=>x.id===c.comment?.relatedId);if(!related)throw new ApiError(422,'private_unavailable','Conversa privada indisponível.');
           related.lifecycle='open';related.assignee=this.account.user;related.human_takeover=true;related.mobile.ai=false;related.preview=body;related.version++;related.last_message_at=message.timestamp;
@@ -85,7 +90,7 @@ export class MockTransport implements Transport {
   }
   async inject(conversationId: number,body='Recebi, obrigado! Pode me explicar mais?') {
     const data=await this.disk.get<Remote>('mock:remote');if(!data)return;
-    const c=data.conversations.find(x=>x.id===conversationId)!;const item:Message={kind:'message',id:++data.sequence,body,direction:'inbound',timestamp:new Date().toISOString(),status:'read'};
+    const c=data.conversations.find(x=>x.id===conversationId)!;const item:Message={kind:'message',id:++data.sequence,body,direction:'inbound',timestamp:new Date().toISOString(),status:'read',...(c.channel==='email'?{subject:replySubject(c.subject),email:{from:{name:c.contact_name,address:c.recipient},to:[{name:c.asset.name,address:c.asset.address||''}],cc:[],quoted:null,has_html:false,has_original:false,auto_reply:false,unverified_sender:false,kind:'message'}}:{})};
     data.messages[conversationId].push(item);if(c.moderation?.spam||c.moderation?.blockedAuthor){await this.disk.put('mock:remote',data);return item;}c.lifecycle='open';c.snoozed_until=null;c.version++;c.unread++;c.needs_response=true;c.preview=body;c.mobile.window_open=true;c.last_message_at=item.timestamp;await this.disk.put('mock:remote',data);return item;
   }
   async closeWindow(conversationId: number){const data=await this.disk.get<Remote>('mock:remote');if(!data)return;const c=data.conversations.find(x=>x.id===conversationId)!;c.mobile.window_open=false;c.can_reply=false;c.reply_blocked_reason='Janela encerrada. Use um template.';await this.disk.put('mock:remote',data)}

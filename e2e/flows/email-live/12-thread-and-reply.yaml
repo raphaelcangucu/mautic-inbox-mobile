@@ -1,0 +1,64 @@
+appId: com.distributionmachine.mauticinbox.demo
+name: Live e-mail 12 · the real thread renders Gmail-style and a reply leaves through the server
+# Env: CONVERSATION_ID, SUBJECT, REPLY. The thread was built by the server e2e: two outgoing e-mails,
+# the lead's reply (quote cut, attachment) and the survey events.
+---
+- tapOn:
+    id: conversation-${CONVERSATION_ID}
+- extendedWaitUntil:
+    visible:
+      id: email-thread-subject
+    timeout: 20000
+- assertVisible:
+    id: email-thread-subject
+    text: ${SUBJECT}
+- assertVisible:
+    id: email-thread-account
+- assertVisible: '.*contato@macro\.test.*'
+- scrollUntilVisible:
+    element: '.*Qual é o depósito mínimo.*'
+    direction: UP
+- assertVisible: '.*Qual é o depósito mínimo.*'
+# Gmail rule: only the latest and the unread e-mails start open. Once read, the lead's card is
+# collapsed to one line, so open it to see the attachment.
+- runFlow:
+    when:
+      notVisible: '.*extrato\.pdf.*'
+    commands:
+      - tapOn: '.*Qual é o depósito mínimo.*'
+- assertVisible: '.*extrato\.pdf.*'
+- takeScreenshot: 11-live-thread
+# The survey events sit above, between the first e-mail and the lead's reply.
+- scrollUntilVisible:
+    element: '.*respondeu o formulário.*'
+    direction: UP
+    timeout: 20000
+- assertVisible: '.*respondeu o formulário.*'
+- takeScreenshot: 11-live-thread-events
+- scrollUntilVisible:
+    element:
+      id: email-reply
+    direction: DOWN
+- tapOn:
+    id: email-reply
+- extendedWaitUntil:
+    visible:
+      id: email-compose
+    timeout: 10000
+- assertVisible: '.*lead@example\.test.*'
+- assertVisible:
+    id: email-compose-subject
+    text: ${SUBJECT}
+- tapOn:
+    id: email-compose-body
+- inputText: ${REPLY}
+- hideKeyboard
+- takeScreenshot: 12-live-compose
+- tapOn:
+    id: email-compose-send
+- extendedWaitUntil:
+    visible: '.*${REPLY}.*'
+    timeout: 30000
+- assertNotVisible:
+    id: email-compose
+- takeScreenshot: 13-live-reply-sent

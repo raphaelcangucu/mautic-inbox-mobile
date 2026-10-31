@@ -1,0 +1,38 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-10-25T05:40:00Z"},
+  "title": "Mautic Inbox · novo layout mobile",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 390, "h": 844, "title": "Login · endereço do Mautic", "is_interactive": true, "radius": 36},
+    "Login-Codigo.dc.html": {"x": 470, "y": 0, "w": 390, "h": 844, "title": "Login · código por e-mail", "is_interactive": true, "radius": 36},
+    "Conversas.dc.html": {"x": 0, "y": 1300, "w": 390, "h": 844, "title": "Conversas", "is_interactive": true, "radius": 36},
+    "Filtros.dc.html": {"x": 470, "y": 1300, "w": 390, "h": 844, "title": "Filtros (folha inferior)", "is_interactive": true, "radius": 36},
+    "Chat.dc.html": {"x": 0, "y": 2600, "w": 390, "h": 844, "title": "Conversa · WhatsApp", "is_interactive": true, "radius": 36},
+    "Email.dc.html": {"x": 470, "y": 2600, "w": 390, "h": 844, "title": "Conversa · e-mail", "is_interactive": true, "radius": 36},
+    "NovaConversa.dc.html": {"x": 0, "y": 3900, "w": 390, "h": 844, "title": "Nova conversa · buscar contato", "is_interactive": true, "radius": 36},
+    "Canal.dc.html": {"x": 470, "y": 3900, "w": 390, "h": 844, "title": "Nova conversa · escolher canal", "is_interactive": true, "radius": 36},
+    "Modelo.dc.html": {"x": 940, "y": 3900, "w": 390, "h": 844, "title": "Nova conversa · modelo do WhatsApp", "is_interactive": true, "radius": 36},
+    "NovoEmail.dc.html": {"x": 1410, "y": 3900, "w": 390, "h": 844, "title": "Nova conversa · e-mail", "is_interactive": true, "radius": 36},
+    "Contatos.dc.html": {"x": 0, "y": 5200, "w": 390, "h": 844, "title": "Contatos", "is_interactive": true, "radius": 36},
+    "Contato.dc.html": {"x": 470, "y": 5200, "w": 390, "h": 844, "title": "Ficha do contato", "is_interactive": true, "radius": 36},
+    "Busca.dc.html": {"x": 940, "y": 5200, "w": 390, "h": 844, "title": "Busca nas conversas", "is_interactive": true, "radius": 36},
+    "Acoes.dc.html": {"x": 0, "y": 6500, "w": 390, "h": 844, "title": "Ações da conversa", "is_interactive": true, "radius": 36},
+    "Comentarios.dc.html": {"x": 470, "y": 6500, "w": 390, "h": 844, "title": "Comentários", "is_interactive": true, "radius": 36},
+    "Assistente.dc.html": {"x": 940, "y": 6500, "w": 390, "h": 844, "title": "Assistente", "is_interactive": true, "radius": 36},
+    "Conta.dc.html": {"x": 0, "y": 7800, "w": 390, "h": 844, "title": "Conta e preferências", "is_interactive": true, "radius": 36},
+    "Notificacoes.dc.html": {"x": 470, "y": 7800, "w": 390, "h": 844, "title": "Notificações", "is_interactive": true, "radius": 36}
+  },
+  "order": ["Main.dc.html", "Login-Codigo.dc.html", "Conversas.dc.html", "Filtros.dc.html", "Chat.dc.html", "Email.dc.html", "NovaConversa.dc.html", "Canal.dc.html", "Modelo.dc.html", "NovoEmail.dc.html", "Contatos.dc.html", "Contato.dc.html", "Busca.dc.html", "Acoes.dc.html", "Comentarios.dc.html", "Assistente.dc.html", "Conta.dc.html", "Notificacoes.dc.html"],
+  "notes": {
+    "row1": {"x": 0, "y": -300, "text": "Entrada", "kind": "title1", "maxW": 860},
+    "row2": {"x": 0, "y": 1000, "text": "Conversas e filtros", "kind": "title1", "maxW": 860},
+    "row3": {"x": 0, "y": 2300, "text": "Mensagens", "kind": "title1", "maxW": 860},
+    "row4": {"x": 0, "y": 3600, "text": "Iniciar uma conversa", "kind": "title1", "maxW": 1800},
+    "row5": {"x": 0, "y": 4900, "text": "Contatos e busca", "kind": "title1", "maxW": 1330},
+    "row6": {"x": 0, "y": 6200, "text": "Atendimento, comentários e assistente", "kind": "title1", "maxW": 1330},
+    "row7": {"x": 0, "y": 7500, "text": "Conta e avisos", "kind": "title1", "maxW": 860}
+  },
+  "designSystems": []
+}

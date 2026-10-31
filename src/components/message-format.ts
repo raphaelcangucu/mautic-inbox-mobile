@@ -48,11 +48,17 @@ function inlineNodes(tokens:ReturnType<typeof parser.parse>):MessageNode[]{
   const node:MessageNode={type:token.type.replace(/_open$/,''),markup:token.markup,text:token.content,children:[]};
   if(token.type==='link_open')node.href=messageLink(String(token.attrGet('href')||''))||undefined;
   if(token.type==='social_mention'){node.type='mention';node.href=messageLink(String(token.attrGet('href')||''))||undefined}
-  if(token.type==='image')node.text=token.content; // Alt text only; no remote tracking pixels.
+  // Alt text by default. The e-mail card alone may load the https source (proxy, or remote after "Show images").
+  if(token.type==='image'){node.text=token.content;node.href=messageImage(String(token.attrGet('src')||''))||undefined}
   stack[stack.length-1].children.push(node);if(token.nesting===1)stack.push(node);
  }
  return root.children;
 }
 export function messageLink(value:string):string|null {
  try{const url=new URL(value);return ['https:','http:','mailto:'].includes(url.protocol)&&!url.username&&!url.password?url.href:null}catch{return null}
+}
+/** https sources, or a same-origin path the e-mail card may resolve to the authenticated proxy. */
+export function messageImage(value:string):string|null {
+ if(/^\/(?!\/)[^\s\\]*$/.test(value))return value;
+ try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href:null}catch{return null}
 }
