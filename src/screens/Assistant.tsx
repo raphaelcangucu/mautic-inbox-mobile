@@ -10,7 +10,8 @@ import {VoiceComposer,type VoiceHandle} from '../components/VoiceComposer';
 import {appendTranscript} from '../voice/transcript';
 import {assistantConsentKey,checkedAssistantDisclosure,assistantConsentMatches,askConsentedAssistant,type AssistantConsent,type AssistantDisclosure} from '../api/assistant-consent';
 
-import {checkedAssistantAgents,chooseAssistantAgent,assistantHistoryKey,type InternalAssistantAgent} from '../api/assistant-agents';
+import {checkedAssistantAgents,chooseAssistantAgent,assistantHistoryKey,assistantSessionKey,type InternalAssistantAgent} from '../api/assistant-agents';
+import {openSession,startSession,recordSession,sessionTitle,type SessionTurn} from '../api/assistant-sessions';
 
 import {checkedCommentClassifications,checkedCommentPage,advanceCommentSweep,startCommentSweep,wantsCommentSweep,commentSweepKey,type CommentPage,type CommentSweep,type CommentClassification} from '../api/assistant-sweep';
 type Turn = {question?:string;comment_classifications?:CommentClassification[];comment_page?:CommentPage|null;id:string; role:'user'|'assistant'; text:string; tool?:string; conversationId?:number;proposals?:AssistantProposal[];completedActions?:Record<string,string>};
@@ -28,6 +29,9 @@ export function Assistant() {
   const s = useApp();
   const [actionReview,setActionReview]=useState<{turnId:string;proposal:AssistantProposal}|null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
+  // Qual sessao do servidor este fio alimenta. Em ref tambem, porque a gravacao acontece
+  // dentro de uma resposta ja em voo e um estado velho criaria uma segunda sessao.
+  const [sessionId,setSessionId]=useState<number|null>(null);const sessionRef=useRef<number|null>(null);
   const [sweep,setSweep]=useState<CommentSweep|null>(null);const sweepRef=useRef<CommentSweep|null>(null);const keepScanning=useRef(false);const [batchReview,setBatchReview]=useState<string|null>(null);const [classificationReview,setClassificationReview]=useState<string|null>(null);const [visibleTurns,setVisibleTurns]=useState(10);
   const pauseScan=()=>{keepScanning.current=false;};
   useEffect(()=>{const sub=AppState.addEventListener('change',state=>{if(state!=='active')pauseScan()});return ()=>{pauseScan();sub.remove()}},[]);
@@ -52,14 +56,26 @@ export function Assistant() {
     let current = true; ++requestGeneration.current;
     keepScanning.current=false;sweepRef.current=null;setSweep(null);setBatchReview(null);setClassificationReview(null);setActionReview(null);setTurns([]);setInput('');setBusy(false);setSharingOpen(false);setDisclosure(null);setPendingQuestion(null);setConsent(null);follow.current = true;
     setAgents([]);setAgent(null);setAgentsReady(false);setAgentPicker(false);setAgentError(false);
+    setSessionId(null);sessionRef.current=null;
     const repo=s.repo;const mock=s.active?.mode==='mock';
     if(repo)void (async()=>{
       try{
         const [raw,saved]=await Promise.all([mock?Promise.resolve({items:[{key:'',name:t('assistant.title'),tools:[],read_only:true}]}):repo.api.request({method:'GET',path:'/inbox/mobile/assistant/agents'}),repo.disk.get<string>('assistant:selected-agent')]);
         if(!current)return;
         const items=checkedAssistantAgents(raw);const selected=chooseAssistantAgent(items,saved);
-        const stored=selected?await repo.disk.get<Turn[]>(assistantHistoryKey(selected.key)):null;
+        let stored=selected?await repo.disk.get<Turn[]>(assistantHistoryKey(selected.key)):null;
         if(!current)return;
+        // Tres entradas possiveis: retomar a sessao tocada na aba, comecar outra, ou seguir
+        // o fio em curso, que e o que a aba do assistente sempre fez.
+        const wanted=useApp.getState().assistantSession;
+        if(selected){
+          if(typeof wanted==='number'){const detail=await openSession(repo.api,wanted).catch(()=>null);if(!current)return;
+            if(detail){stored=detail.history as Turn[];sessionRef.current=detail.id;setSessionId(detail.id);await repo.disk.put(assistantHistoryKey(selected.key),stored);await repo.disk.put(assistantSessionKey(selected.key),detail.id);s.notify(t('ai.resumed'))}}
+          else if(wanted==='new'){stored=[];sessionRef.current=null;setSessionId(null);await repo.disk.put(assistantHistoryKey(selected.key),[]);await repo.disk.put(assistantSessionKey(selected.key),0)}
+          else {const open=await repo.disk.get<number>(assistantSessionKey(selected.key));if(!current)return;sessionRef.current=open||null;setSessionId(open||null)}
+          if(wanted!==null)useApp.setState({assistantSession:null});
+          if(!current)return;
+        }
         const savedSweep=selected?await repo.disk.get<CommentSweep>(commentSweepKey(selected.key)):null;if(!current)return;
         if(savedSweep){const restored={...savedSweep,status:savedSweep.status==='complete'?'complete' as const:'paused' as const};sweepRef.current=restored;setSweep(restored)}
         setAgents(items);setAgent(selected);setTurns(stored||[]);setAgentsReady(true);
@@ -67,6 +83,29 @@ export function Assistant() {
     })();
     return () => {current = false; ++requestGeneration.current};
   }, [s.active?.id,s.repo,agentReload]);
+
+  /**
+   * O fio vira registro no servidor. A sessao e um arquivo, nao parte da resposta: se a
+   * gravacao falhar, o operador fica com a resposta na tela e o disco como antes.
+   */
+  async function record(history:Turn[]){
+    const repo=s.repo,selected=agent;if(!repo||!selected)return;
+    const turns:SessionTurn[]=history.filter(turn=>turn.role==='user'||turn.role==='assistant').filter(turn=>turn.text.trim())
+      .map(turn=>({id:turn.id,role:turn.role,text:turn.text,...(turn.tool?{tool:turn.tool}:{}),...(turn.conversationId?{conversationId:turn.conversationId}:{})}));
+    if(!turns.length)return;
+    try{
+      let id=sessionRef.current;
+      if(!id){
+        const first=turns.find(turn=>turn.role==='user');
+        const started=await startSession(repo.api,selected.key,sessionTitle(first?.text||''));
+        if(!started)return;
+        id=started.id;sessionRef.current=id;setSessionId(id);
+        await repo.disk.put(assistantSessionKey(selected.key),id);
+      }
+      await recordSession(repo.api,id,turns);
+      if(useApp.getState().view.kind==='ai')void useApp.getState().loadAiSessions();
+    }catch{/* registro e conveniencia: nunca derruba a conversa que ja esta na tela */}
+  }
 
   async function selectAgent(selected:InternalAssistantAgent){
     const repo=s.repo;const accountId=s.active?.id;if(!repo||busy)return;
@@ -119,7 +158,7 @@ export function Assistant() {
         const previous=new Set(scanning?sweepRef.current?.seen||[]:[]);
         const proposals=checkedAssistantProposals(response.proposals,agent!.key).filter(p=>!scanning||!previous.has(p.target.id));
         history=[...next,{...response,question,comment_classifications:rows,comment_page:nextPage,proposals,id:String(Date.now()+1),conversationId:s.conversationId||undefined}];
-        setTurns(history);await repo.disk.put(assistantHistoryKey(agent!.key),history);
+        setTurns(history);await repo.disk.put(assistantHistoryKey(agent!.key),history);await record(history);
         if(scanning&&sweepRef.current){
           let progress=advanceCommentSweep(sweepRef.current,rows,nextPage);
           if(progress.status==='running'&&(!keepScanning.current||AppState.currentState!=='active'))progress={...progress,status:'paused'};
@@ -210,6 +249,8 @@ export function Assistant() {
         {!!agent&&<Tap label={t('assistant.chooseAgent')} testID="assistant-agent-pill" disabled={busy||agents.length<2} onPress={()=>setAgentPicker(true)} style={{flexDirection:'row',alignItems:'center',gap:8,height:44,minHeight:44,paddingLeft:6,paddingRight:12,borderRadius:22,borderWidth:1,borderColor:c.line,backgroundColor:c.paper,maxWidth:'58%'}}><View style={{width:32,height:32,borderRadius:16,backgroundColor:c.blue,alignItems:'center',justifyContent:'center'}}><Icon name="sparkles-outline" size={17} color={c.paper}/></View><T size={14} heavy numberOfLines={1} style={{flexShrink:1}}>{agent.name}</T>{agents.length>1&&<Icon name="chevron-down" size={15} color={c.soft}/>}</Tap>}
         {s.active?.mode==='live'&&<Tap label={t("assistant.sharing")} testID="assistant-sharing-settings" disabled={busy||s.offline} onPress={()=>void ask(null)} style={{width:40,height:40,minHeight:40,alignItems:'center'}}><Icon name="shield-checkmark-outline" size={20} color={c.soft}/></Tap>}
       </View>
+      {/* Diz em qual sessao o fio esta caindo: sem isto nada na tela distingue uma sessao retomada de um fio novo. */}
+      {!!sessionId&&<View style={{flexDirection:'row',gap:6,alignItems:'center',alignSelf:'flex-start',backgroundColor:c.tintSoft,borderRadius:7,paddingVertical:5,paddingHorizontal:8,marginBottom:9}}><Icon name="sparkles-outline" size={13} color={c.blue}/><T testID="assistant-session-badge" size={11} semi color={c.blue}>{t('ai.sessionBadge',{id:sessionId})}</T></View>}
       <View style={{flexDirection:'row',gap:5,alignItems:'center',alignSelf:'flex-start',backgroundColor:c.okBg,borderRadius:7,paddingVertical:5,paddingHorizontal:8}}>
         <Icon name="lock-closed-outline" size={12} color={c.ok}/><T size={9} bold color={c.ok}>{t(agent?.confirmation_required?'assistant.permissionsActions':'assistant.permissions')}</T>
       </View>

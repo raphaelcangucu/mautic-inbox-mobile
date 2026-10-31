@@ -6,11 +6,49 @@ import type {Storage} from '../storage/interface.ts';
 import {upgrade,featureRequest,type Remote} from './features.ts';
 import {emailReply} from './mock-email.ts';
 import {replySubject} from './email.ts';
+type MockSession={id:number;title:string;agent_key:string;context_kind:'conversation'|'contact'|null;context_id:number|null;created:string;updated:string;history:{id:string;role:'user'|'assistant';text:string;tool?:string;conversationId?:number}[]};
 export class MockTransport implements Transport {
   offline=false; latency=180; uncertainNext=false; conflictNext=false; available=true;
   private lock: Promise<unknown>=Promise.resolve();
   constructor(readonly account: Account,private disk: Storage){}
   async settle(){await this.lock}
+
+  /** As sessoes do assistente na demonstracao, com a mesma forma que o plugin devolve. */
+  private async sessions(r: ApiRequest): Promise<unknown> {
+    const key='mock:assistant-sessions';
+    const rows=(await this.disk.get<MockSession[]>(key))||[];
+    const route=r.path.match(/^\/inbox\/mobile\/assistant\/sessions\/(\d+)$/);
+    const body=(r.body||{}) as Record<string,unknown>;
+    const now=new Date().toISOString();
+    const listed=(row:MockSession)=>({...row,turns:row.history.length});
+    if(!route){
+      if(r.method==='GET')return {items:rows.map(listed)};
+      if(r.method==='POST'){
+        const context=(body.context||null) as {kind?:unknown;id?:unknown}|null;
+        const kind=context?.kind==='conversation'||context?.kind==='contact'?context.kind:null;
+        const row:MockSession={id:rows.reduce((max,item)=>Math.max(max,item.id),0)+1,title:String(body.title||''),agent_key:String(body.agent_key||''),
+          context_kind:kind,context_id:kind&&typeof context?.id==='number'?context.id:null,created:now,updated:now,history:[]};
+        await this.disk.put(key,[row,...rows]);
+        return listed(row);
+      }
+      throw new ApiError(405,'method_not_allowed','Método não permitido.');
+    }
+    const id=Number(route[1]);const found=rows.find(row=>row.id===id);
+    if(!found)throw new ApiError(404,'not_found','Sessão não encontrada.');
+    if(r.method==='GET')return listed(found);
+    if(r.method==='PUT'){
+      found.history=Array.isArray(body.turns)?body.turns as MockSession['history']:[];
+      const title=typeof body.title==='string'?body.title:'';
+      if(title)found.title=title;
+      if(!found.title)found.title=(found.history.find(turn=>turn.role==='user')?.text||'').slice(0,80);
+      found.updated=now;
+      await this.disk.put(key,[found,...rows.filter(row=>row.id!==id)]);
+      return listed(found);
+    }
+    if(r.method==='DELETE'){await this.disk.put(key,rows.filter(row=>row.id!==id));return {removed:true}}
+    throw new ApiError(405,'method_not_allowed','Método não permitido.');
+  }
+
   request<T>(r: ApiRequest): Promise<T> {
     const job=this.lock.then(()=>this.execute<T>(r));this.lock=job.catch(()=>{});return job;
   }
@@ -36,6 +74,7 @@ export class MockTransport implements Transport {
       value={items:items.slice(offset,offset+limit),next_cursor:offset+limit<items.length?String(offset+limit):null,counts:{all:items.length,mine:items.filter(x=>x.assignee?.id===this.account.user.id).length,unassigned:items.filter(x=>x.assignee===null).length}};
     }else if(r.path==='/inbox/mobile/availability'){if(r.method==='POST')this.available=!!(r.body as{available?:boolean})?.available;value={available:this.available};
     }else if(r.path==='/inbox/api/updates')value={conversations:data.conversations,timeline:r.query?.state_id?data.messages[Number(r.query.state_id)]:[],next_since:new Date().toISOString(),has_more:false};
+    else if(r.path.startsWith('/inbox/mobile/assistant/sessions'))value=await this.sessions(r);
     else if(r.path==='/inbox/mobile/assistant/messages'&&r.method==='POST'){
       const question=String(b.message||'');const waiting=/aguardando|sem resposta|awaiting|waiting|unanswered|esperando|sin respuesta/i.test(question);const history=/histórico|historico|resumir|history|summari[sz]|historial|resum/i.test(question);const segment=/segment|automa/i.test(question);const draft=!waiting&&/respost|sugest|rascunh|repl|suggest|draft|respuest|suger|borrador/i.test(question);const contact=waiting||/contat|pessoa|contact|person/i.test(question);
       if(history)value={role:'assistant',tool:'inbox_history · mock',text:t("mock.assistantHistory",{assignee:data.conversations.find(x=>x.id===Number(b.conversation_id))?.assignee?.name||t("mock.team")})};else if(segment)value={role:'assistant',tool:'mautic_search_segments · mock',text:t("mock.assistantSegments")};else if(waiting)value={role:'assistant',tool:'inbox_search_conversations · mock',text:data.conversations.filter(x=>x.needs_response&&!x.moderation?.spam&&!x.moderation?.blockedAuthor).map(x=>x.contact_name+' · '+x.channel).join('\n')};else value={role:'assistant',tool:draft?'inbox_context · mock':contact?'mautic_search_contacts · mock':'mautic_search_campaigns · mock',text:draft?t("mock.assistantDraft"):contact?t("mock.assistantContacts",{count:new Set(data.conversations.filter(x=>!x.moderation?.spam&&!x.moderation?.blockedAuthor).map(x=>x.contact?.id||x.channel+':'+x.recipient)).size}):t("mock.assistantCampaigns")};

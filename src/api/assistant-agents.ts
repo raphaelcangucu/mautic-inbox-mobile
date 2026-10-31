@@ -10,6 +10,8 @@ export function checkedAssistantAgents(raw:unknown):InternalAssistantAgent[]{
   return data.items;
 }
 export function assistantHistoryKey(agentKey:string):string{return agentKey?`assistant:turns:${agentKey}`:'assistant:turns'};
+/** Qual sessao do servidor o fio em curso esta alimentando. */
+export function assistantSessionKey(agentKey:string):string{return agentKey?`assistant:session:${agentKey}`:'assistant:session'};
 export function chooseAssistantAgent(agents:InternalAssistantAgent[],saved:string|null|undefined):InternalAssistantAgent|null{
   return agents.find(agent=>agent.key===saved)??agents[0]??null;
 }
