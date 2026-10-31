@@ -35,7 +35,7 @@ export type Page<T> = {items: T[]; next_cursor: string | null; complete?:boolean
 export type Template = {id: number; name: string; language: string; category: string; supported: boolean; preview: string; fields: {key: string; token: string; component: string}[]; parts: {type: string; text: string}[]};
 export type Outbox = {request_id: string; conversationId: number; body: string; mode: 'reply'|'note'; timestamp: string; status: 'sending'|'uncertain'|'failed'; template_id?: number; variables?: Record<string,string>; attachment?: Attachment; replyMode?:'public'|'private'; subject?: string};
 export type Preferences = {remotePush?: boolean; sound: boolean; vibration: boolean; preview: boolean; quiet: boolean; grouped?:boolean; suppressOpen?:boolean};
-export type ViewState = {kind:'inbox'|'comments';filter: Filter; search: string; channels: Channel[]; listOffset: number; railOffset: number; chatOffsets: Record<number,number>; chatAnchors: Record<number,string>; lastChat?: number; channelsKnown?: Channel[]};
+export type ViewState = {kind:'inbox'|'comments'|'ai';filter: Filter; search: string; channels: Channel[]; listOffset: number; railOffset: number; chatOffsets: Record<number,number>; chatAnchors: Record<number,string>; lastChat?: number; channelsKnown?: Channel[]};
 export const defaultView = (): ViewState => ({kind:'inbox',filter:'Todas',search:'',channels:Object.keys(channels) as Channel[],listOffset:0,railOffset:0,chatOffsets:{},chatAnchors:{},channelsKnown:Object.keys(channels) as Channel[]});
 /** A saved filter only hides channels the operator chose to hide. Channels added in a later release start visible. */
 export function migrateView(saved?: Partial<ViewState>|null): ViewState {

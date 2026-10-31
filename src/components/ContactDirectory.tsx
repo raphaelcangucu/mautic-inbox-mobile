@@ -2,7 +2,7 @@ import {SocialProfileLinks} from './SocialProfileLinks';
 import type {SocialProfiles} from '../api/social-profiles';
 import {t} from '../i18n/engine';
 import React,{useEffect,useRef,useState} from 'react';
-import {View,ScrollView} from 'react-native';
+import {View,ScrollView,Switch} from 'react-native';
 import {useApp} from '../store/app';
 import {useTheme,channelColor,scale} from '../theme';
 import {T,Tap,Icon,Button,Field,Card,Header,Top,DetailRow} from './ui';
@@ -12,7 +12,36 @@ import type {CrmOption} from './crm-catalogue';
 import type {Conversation,Page} from '../api/types';
 import {channelOptionLabel,startable,withStarted,type ChannelOption} from '../api/contact-channels';
 export type ContactCard={id:number;name:string;email:string;phone:string;social_profiles?:SocialProfiles};
-type ContactDetail=ContactCard&{campaigns:{id:number;name:string}[];channels:ChannelOption[]};
+export type DoNotContact={blocked:boolean;reason:'manual'|'unsubscribed'|'bounced'|null;editable:boolean};
+type ContactDetail=ContactCard&{campaigns:{id:number;name:string}[];channels:ChannelOption[];do_not_contact?:DoNotContact};
+
+/** Nao perturbe do contato: o DNC de e-mail do Mautic, que vale para campanha e resposta
+ *  humana. O que o contato pediu (descadastro) e o que o servidor respondeu (bounce) chegam
+ *  com `editable: false`: o app mostra o motivo e nao oferece o desfazer. */
+export function ContactDoNotDisturb({contactId}:{contactId:number}){
+ const s=useApp();const c=useTheme();const [state,setState]=useState<DoNotContact|null>(null);const [busy,setBusy]=useState(false);const [error,setError]=useState('');const request=useRef(0);
+ useEffect(()=>{const seq=++request.current;const repo=s.repo;setState(null);setError('');
+  if(repo)void(async()=>{const cached=await repo.disk.get<ContactDetail>('contact:'+contactId);if(seq===request.current&&cached?.do_not_contact)setState(cached.do_not_contact);if(s.offline)return;
+   // Uma instalacao mais antiga nao devolve o campo: a secao some, em vez de mentir um estado.
+   try{const fresh=await repo.api.request<ContactDetail>({method:'GET',path:`/inbox/mobile/contacts/${contactId}`});await repo.disk.put('contact:'+contactId,fresh);if(seq===request.current)setState(fresh.do_not_contact||null)}catch{/* a tela do contato nao depende disto */}})();
+  return()=>{request.current++}},[s.active?.id,contactId,s.offline]);
+ async function toggle(blocked:boolean){const repo=s.repo;if(!repo||busy||s.offline)return;const seq=++request.current;setBusy(true);setError('');
+  try{const fresh=await repo.api.request<{do_not_contact:DoNotContact}>({method:'PUT',path:`/inbox/mobile/contacts/${contactId}/dnc`,body:{blocked}});
+   if(seq!==request.current)return;setState(fresh.do_not_contact);
+   // O estado guardado decide se o canal de e-mail aparece disponivel na sheet.
+   const cached=await repo.disk.get<ContactDetail>('contact:'+contactId);if(cached)await repo.disk.put('contact:'+contactId,{...cached,do_not_contact:fresh.do_not_contact});
+  }catch(e){if(seq===request.current)setError(e instanceof Error?e.message:String(e))}
+  finally{if(seq===request.current)setBusy(false)}}
+ if(!state)return null;
+ const reason=state.editable?t("contact.dndHint"):t(state.reason==='bounced'?"contact.dndBounced":"contact.dndUnsubscribed");
+ return <Card style={{gap:10}}>
+  <View style={{flexDirection:'row',alignItems:'center',gap:12}}>
+   <View style={{flex:1,gap:3}}><T bold size={15}>{t("contact.dndTitle")}</T><T muted size={12}>{reason}</T></View>
+   <Switch testID="contact-dnd" accessibilityLabel={t("contact.dndTitle")} value={state.blocked} disabled={!state.editable||busy||s.offline} onValueChange={value=>void toggle(value)}/>
+  </View>
+  {!!error&&<T size={13} color={c.warn} accessibilityRole="alert">{error}</T>}
+ </Card>;
+}
 
 export function StartContactConversation({contactId,compact=false}:{contactId:number;compact?:boolean}){
  const s=useApp();const c=useTheme();const [open,setOpen]=useState(false);const [detail,setDetail]=useState<ContactDetail|null>(null);const [busy,setBusy]=useState(false);const [error,setError]=useState('');const request=useRef(0);

@@ -51,10 +51,17 @@ export function emailFeature(data:EmailRemote,a:Account,r:ApiRequest):unknown|un
   const rows=directory(data).filter(x=>(!query||[x.name,x.email,x.phone].some(v=>v.toLocaleLowerCase('pt-BR').includes(query)))&&(!campaign||related(data,x).some(c=>c.origins.campaign===names.campaign[campaign]||c.campaigns?.includes(names.campaign[campaign])))&&(!segment||related(data,x).some(c=>c.segments?.includes(names.segment[segment]))));
   return {items:rows.slice(offset,offset+limit).map(({id,name,email,phone})=>({id,name,email,phone})),next_cursor:offset+limit<rows.length?String(offset+limit):null};
  }
- const route=r.path.match(/^\/inbox\/mobile\/contacts\/([1-9][0-9]*)(?:\/(start))?$/);
+ const route=r.path.match(/^\/inbox\/mobile\/contacts\/([1-9][0-9]*)(?:\/(start|dnc))?$/);
  if(route){
   const contact=directory(data).find(x=>x.id===Number(route[1]));if(!contact)throw new ApiError(404,'not_found',t('error.not_found'));
-  if(!route[2]&&r.method==='GET'){const campaigns=[...new Set(related(data,contact).flatMap(c=>[c.origins.campaign,...(c.campaigns||[])]).filter(Boolean))];return {id:contact.id,name:contact.name,email:contact.email,phone:contact.phone,campaigns:campaigns.map((name,i)=>({id:i+1,name})),channels:contactChannels(data,contact)}}
+  if(!route[2]&&r.method==='GET'){const campaigns=[...new Set(related(data,contact).flatMap(c=>[c.origins.campaign,...(c.campaigns||[])]).filter(Boolean))];return {id:contact.id,name:contact.name,email:contact.email,phone:contact.phone,campaigns:campaigns.map((name,i)=>({id:i+1,name})),channels:contactChannels(data,contact),do_not_contact:{blocked:!!contact.dnc,reason:contact.dnc?'manual':null,editable:true}}}
+  // A demonstracao guarda o nao perturbe no mesmo campo que ja fecha o canal de e-mail,
+  // entao ligar o controle tambem muda o que a sheet de canais oferece.
+  if(route[2]==='dnc'&&r.method==='PUT'){
+   const blocked=b.blocked===true;const row=(data.contacts||[]).find(x=>x.id===contact.id);
+   if(row)row.dnc=blocked;else (data.contacts||=[]).push({...contact,dnc:blocked});
+   return {id:contact.id,do_not_contact:{blocked,reason:blocked?'manual':null,editable:true}};
+  }
   if(route[2]==='start'&&r.method==='POST'){
    const key=String(b.channel_key||'');const state=/^state:([1-9][0-9]*)$/.exec(key);const email=/^email:([1-9][0-9]*)$/.exec(key);
    if(state){const c=related(data,contact).find(x=>x.id===Number(state[1]));if(!c)throw new ApiError(404,'not_found',t('error.not_found'));return c}

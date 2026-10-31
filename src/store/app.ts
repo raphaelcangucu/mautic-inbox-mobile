@@ -2,6 +2,7 @@ import {t} from '../i18n/engine.ts';
 import {clearAccountAudio,discardStagedAudio} from '../voice/files';
 import {newDeliveryFailure} from '../api/delivery-diagnostics';
 import {initialReplyMode} from '../api/reply-mode';
+import {listSessions,type SessionRow} from '../api/assistant-sessions';
 import {pushPreview} from '../api/email';
 import {syncPushAccounts} from '../api/push-accounts';
 import {create} from 'zustand';
@@ -52,10 +53,12 @@ type State={
   syncing:boolean;refreshingList:boolean;offline:boolean;slow:boolean;error:string;toast:string;lastSync:number;listComplete:boolean;preferences:Preferences;pushStatus:PushStatus|null;pushBusy:boolean;refreshPush:()=>Promise<void>;enablePush:(enabled:boolean)=>Promise<void>;testPush:()=>Promise<void>;unseen:number;performance:number[];
   boot:()=>Promise<void>;switchAccount:(a:Account)=>Promise<void>;connect:(config:MobileConfig,result:LoginResult,name:string)=>Promise<void>;logout:(remove?:boolean,localOnly?:boolean)=>Promise<void>;
   navigate:(r:Route)=>void;back:()=>void;sync:(force?:boolean,showRefresh?:boolean)=>Promise<void>;moreConversations:()=>Promise<void>;openChat:(id:number)=>Promise<void>;older:()=>Promise<void>;read:()=>Promise<void>;
+  aiSessions:SessionRow[];aiSessionsBusy:boolean;assistantSession:number|'new'|null;loadAiSessions:()=>Promise<void>;openAssistantSession:(id:number|'new'|null)=>void;
   setView:(patch:Partial<ViewState>)=>void;setDraft:(text:string)=>void;setMode:(mode:'reply'|'note')=>Promise<void>;send:(template?:Template,variables?:Record<string,string>,subject?:string)=>Promise<boolean>;
   retryMessage:(message:Message)=>Promise<boolean>;transition:(action:string,payload?:Record<string,unknown>,conversationId?:number)=>Promise<boolean>;feature:(endpoint:string,payload:Record<string,unknown>)=>Promise<boolean>;themeToggle:()=>void;setThemeChoice:(choice:ThemeChoice)=>void;setAvailable:(value:boolean)=>Promise<void>;loadAvailability:()=>Promise<void>;refreshConfig:()=>Promise<void>;toggleOffline:()=>void;toggleSlow:()=>void;inject:()=>Promise<void>;toggleWindow:()=>Promise<void>;setPreferences:(patch:Partial<Preferences>)=>void;notify:(message:string)=>void;
 };
 export const useApp=create<State>((set,get)=>({
+  aiSessions:[],aiSessionsBusy:false,assistantSession:null,
   demoUnlocked:false,connections:initialConnections,connectionDraft:null,ready:false,accounts:[],active:null,repo:null,transport:null,route:'inbox',theme:'light',themeChoice:'light',available:true,view:defaultView(),conversations:[],messages:{},conversationId:0,draft:'',mode:'reply',attachment:null,cursor:null,replyMode:'public',syncing:false,refreshingList:false,offline:false,slow:false,error:'',toast:'',lastSync:0,listComplete:true,preferences:prefs,pushStatus:null,pushBusy:false,unseen:0,performance:[],
   boot:async()=>{
     try{const raw=await AsyncStorage.getItem(metadataKey);const meta:Metadata=raw?JSON.parse(raw):{accounts:[],activeId:null,theme:'light'};const choice:ThemeChoice=meta.themeChoice??meta.theme??'light';set({demoUnlocked:false,connections:meta.connections||initialConnections,accounts:meta.accounts,themeChoice:choice,theme:resolveTheme(choice)});
@@ -107,6 +110,11 @@ export const useApp=create<State>((set,get)=>({
   },
   older:async()=>{const s=get();if(!s.repo||!s.cursor||s.offline)return;const epoch=generation;try{const p=await s.repo.history(s.conversationId,s.cursor);const items=await s.repo.cachedMessages(s.conversationId);if(epoch===generation&&get().conversationId===s.conversationId)set({messages:{...get().messages,[s.conversationId]:items},cursor:p.next_cursor})}catch(e){get().notify(e instanceof Error?e.message:String(e))}},
   read:async()=>{const s=get();const c=s.conversations.find(c=>c.id===s.conversationId);if(!s.repo||s.offline||!c?.unread)return;const epoch=generation;try{const fresh=await s.repo.transition(c.id,c.version,'read');if(epoch===generation)set({conversations:get().conversations.map(c=>c.id===fresh.id?fresh:c)})}catch{}},
+  // A aba de sessoes nao entra no sync periodico: ela so carrega quando alguem a abre,
+  // porque nenhuma outra tela usa essa lista.
+  loadAiSessions:async()=>{const repo=get().repo;if(!repo||get().aiSessionsBusy)return;set({aiSessionsBusy:true});
+   try{const items=await listSessions(repo.api);set({aiSessions:items})}catch(e){get().notify(e instanceof Error?e.message:String(e))}finally{set({aiSessionsBusy:false})}},
+  openAssistantSession:id=>{set({assistantSession:id});get().navigate('assistant')},
   setView:patch=>{const view={...get().view,...patch};set({view});void get().repo?.disk.put('ui:view',view)},
   setDraft:text=>{chatNavigation.editedDraft();set({draft:text});const s=get();if(!s.repo)return;const key='draft:'+s.conversationId+':'+s.mode;draftFlush=()=>s.repo!.disk.put(key,text);if(draftTimer)clearTimeout(draftTimer);draftTimer=setTimeout(()=>{void flushDraft()},120)},
   setMode:async mode=>{const s=get();if(!s.repo)return;const epoch=generation;await chatNavigation.changeMode(s.conversationId,mode,s.repo,{flushDraft,valid:()=>epoch===generation&&get().repo===s.repo&&get().route==='chat'&&get().conversationId===s.conversationId,apply:draft=>set({mode,draft,attachment:null})})},
